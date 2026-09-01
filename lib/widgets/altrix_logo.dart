@@ -9,6 +9,8 @@ class AltrixLogo extends StatelessWidget {
     this.showShadow = true,
   });
 
+  static const assetPath = 'assets/icon/altrixs_app_icon.jpeg';
+
   final double size;
   final bool showShadow;
 
@@ -19,11 +21,6 @@ class AltrixLogo extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(size * 0.28),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF9B93F8), AppColors.primary],
-        ),
         boxShadow: showShadow
             ? [
                 BoxShadow(
@@ -34,7 +31,13 @@ class AltrixLogo extends StatelessWidget {
               ]
             : null,
       ),
-      child: CustomPaint(painter: _LogoAPainter()),
+      clipBehavior: Clip.antiAlias,
+      child: Image.asset(
+        assetPath,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+      ),
     );
   }
 }
@@ -50,46 +53,22 @@ class AltrixWordmark extends StatelessWidget {
     return FittedBox(
       fit: BoxFit.scaleDown,
       child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AltrixLogo(size: logoSize),
-        SizedBox(width: compact ? 10 : 12),
-        Text(
-          'Altrixs',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: compact ? 28 : 34,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.6,
-            height: 1,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AltrixLogo(size: logoSize),
+          SizedBox(width: compact ? 10 : 12),
+          Text(
+            'Altrixs',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: compact ? 28 : 34,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.6,
+              height: 1,
+            ),
           ),
-        ),
-      ],
-    ),
+        ],
+      ),
     );
   }
-}
-
-class _LogoAPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.11
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final path = Path()
-      ..moveTo(size.width * 0.32, size.height * 0.74)
-      ..lineTo(size.width * 0.48, size.height * 0.28)
-      ..lineTo(size.width * 0.62, size.height * 0.52)
-      ..moveTo(size.width * 0.50, size.height * 0.52)
-      ..lineTo(size.width * 0.72, size.height * 0.52);
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

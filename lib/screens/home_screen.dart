@@ -47,7 +47,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final responsive = context.responsive;
-    final userName = ref.watch(authProvider).user?.name?.trim() ?? '';
+    final userName = ref.watch(authProvider).user?.name.trim() ?? '';
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
