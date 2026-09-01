@@ -3,9 +3,14 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
 class AltrixLogo extends StatelessWidget {
-  const AltrixLogo({super.key, this.size = 52});
+  const AltrixLogo({
+    super.key,
+    this.size = 52,
+    this.showShadow = true,
+  });
 
   final double size;
+  final bool showShadow;
 
   @override
   Widget build(BuildContext context) {
@@ -19,13 +24,15 @@ class AltrixLogo extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [Color(0xFF9B93F8), AppColors.primary],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.35),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        boxShadow: showShadow
+            ? [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.35),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ]
+            : null,
       ),
       child: CustomPaint(painter: _LogoAPainter()),
     );

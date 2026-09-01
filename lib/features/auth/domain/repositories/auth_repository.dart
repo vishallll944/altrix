@@ -9,6 +9,11 @@ abstract class AuthRepository {
 
   Future<User> getProfile();
 
+  Future<User> updateProfile({
+    required String email,
+    required String phone,
+  });
+
   Future<void> acceptInvite({
     required String token,
     required String password,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,10 +23,13 @@ class UnauthorizedInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) {
     if (err.response?.statusCode == 401 &&
         !_isPublicPath(err.requestOptions.path)) {
-      _ref.read(authProvider.notifier).signOut();
-      rootNavigatorKey.currentState?.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const SignInScreen()),
-        (_) => false,
+      unawaited(
+        _ref.read(authProvider.notifier).signOut().then((_) {
+          rootNavigatorKey.currentState?.pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const SignInScreen()),
+            (_) => false,
+          );
+        }),
       );
     }
     handler.next(err);

@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/responsive/responsive.dart';
 import '../core/responsive/responsive_widgets.dart';
+import '../features/auth/presentation/providers/auth_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_buttons.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key, this.onNavigateToTab});
 
   final ValueChanged<int>? onNavigateToTab;
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   int? _mood;
 
   String get _greeting {
@@ -35,9 +37,17 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  String _initials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty || parts.first.isEmpty) return '?';
+    if (parts.length == 1) return parts.first[0].toUpperCase();
+    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     final responsive = context.responsive;
+    final userName = ref.watch(authProvider).user?.name?.trim() ?? '';
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
@@ -51,7 +61,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 bottom: responsive.rz(28),
               ),
               children: [
-              _Header(greeting: _greeting),
+              _Header(
+                greeting: _greeting,
+                userName: userName,
+                initials: _initials(userName),
+              ),
               const SizedBox(height: 18),
               _NextSessionCard(
                 onJoin: () => _toast('Opening Zoom…'),
@@ -86,13 +100,20 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.greeting});
+  const _Header({
+    required this.greeting,
+    required this.userName,
+    required this.initials,
+  });
 
   final String greeting;
+  final String userName;
+  final String initials;
 
   @override
   Widget build(BuildContext context) {
     final responsive = context.responsive;
+    final greetingText = userName.isEmpty ? greeting : '$greeting, $userName';
     return Row(
       children: [
         Expanded(
@@ -100,7 +121,7 @@ class _Header extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '$greeting, Maya',
+                greetingText,
                 style: responsiveTextStyle(
                   context,
                   fontSize: 24,
@@ -130,12 +151,12 @@ class _Header extends StatelessWidget {
             color: AppColors.primary,
             shape: BoxShape.circle,
           ),
-          child: const Text(
-            'MP',
+          child: Text(
+            initials,
             style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w700,
-              fontSize: 14,
+              fontSize: responsive.rz(14),
             ),
           ),
         ),

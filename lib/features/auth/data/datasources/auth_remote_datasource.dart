@@ -7,6 +7,7 @@ import '../models/invite_accept_request.dart';
 import '../models/login_request.dart';
 import '../models/login_response.dart';
 import '../models/profile_response.dart';
+import '../models/update_profile_request.dart';
 
 class AuthRemoteDataSource {
   const AuthRemoteDataSource(this._dio);
@@ -39,6 +40,19 @@ class AuthRemoteDataSource {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
         ApiEndpoints.patientMe,
+      );
+      return ProfileResponse.fromJson(response.data!);
+    } on DioException catch (error) {
+      throw ApiException.fromDio(error);
+    }
+  }
+
+  Future<ProfileResponse> updateProfile(UpdateProfileRequest request) async {
+    _ensureApiConfigured();
+    try {
+      final response = await _dio.patch<Map<String, dynamic>>(
+        ApiEndpoints.patientMe,
+        data: request.toJson(),
       );
       return ProfileResponse.fromJson(response.data!);
     } on DioException catch (error) {

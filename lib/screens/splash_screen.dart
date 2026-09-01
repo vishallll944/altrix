@@ -40,6 +40,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late final Animation<double> _ringRotation;
 
   bool _navigated = false;
+  bool _animationComplete = false;
+  bool _sessionReady = false;
 
   @override
   void initState() {
@@ -93,15 +95,30 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
-        _goNext();
+        _animationComplete = true;
+        _tryNavigate();
       }
     });
 
+    WidgetsBinding.instance.addPostFrameCallback((_) => _restoreSession());
+
     if (widget.skipAnimation) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _goNext());
+      _animationComplete = true;
     } else {
       _controller.forward();
     }
+  }
+
+  Future<void> _restoreSession() async {
+    await ref.read(authProvider.notifier).restoreSession();
+    if (!mounted) return;
+    _sessionReady = true;
+    _tryNavigate();
+  }
+
+  void _tryNavigate() {
+    if (!_animationComplete || !_sessionReady) return;
+    _goNext();
   }
 
   @override
@@ -115,11 +132,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (_navigated || !mounted) return;
     _navigated = true;
 
-    final hasSession = ref.read(authTokenProvider) != null &&
-        ref.read(authProvider).user != null;
-
-    final nextScreen =
-        hasSession ? const MainShell() : const SignInScreen();
+    final token = ref.read(authTokenProvider);
+    final nextScreen = token != null ? const MainShell() : const SignInScreen();
 
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(

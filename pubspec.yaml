@@ -36,6 +36,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   dio: ^5.9.0
   flutter_riverpod: ^2.6.1
+  flutter_secure_storage: ^9.2.4
+  shared_preferences: ^2.5.3
 
 dev_dependencies:
   flutter_test:
@@ -47,6 +49,27 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/icon/app_icon.png
+  adaptive_icon_background: "#6B63F0"
+  adaptive_icon_foreground: assets/icon/app_icon_foreground.png
+  remove_alpha_ios: true
+  web:
+    generate: true
+    image_path: assets/icon/app_icon.png
+    background_color: "#6B63F0"
+    theme_color: "#6B63F0"
+  windows:
+    generate: true
+    image_path: assets/icon/app_icon.png
+    icon_size: 256
+  macos:
+    generate: true
+    image_path: assets/icon/app_icon.png
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

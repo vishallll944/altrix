@@ -4,6 +4,7 @@ import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_datasource.dart';
 import '../models/invite_accept_request.dart';
 import '../models/login_request.dart';
+import '../models/update_profile_request.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   const AuthRepositoryImpl(this._remoteDataSource);
@@ -27,6 +28,17 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<User> getProfile() async {
     final response = await _remoteDataSource.getProfile();
+    return response.client.toEntity();
+  }
+
+  @override
+  Future<User> updateProfile({
+    required String email,
+    required String phone,
+  }) async {
+    final response = await _remoteDataSource.updateProfile(
+      UpdateProfileRequest(email: email, phone: phone),
+    );
     return response.client.toEntity();
   }
 

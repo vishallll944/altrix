@@ -5,6 +5,7 @@ import '../core/responsive/responsive.dart';
 import '../core/responsive/responsive_widgets.dart';
 import '../features/auth/presentation/providers/auth_provider.dart';
 import '../features/auth/presentation/screens/sign_in_screen.dart';
+import '../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../theme/app_colors.dart';
 
 class ScheduleScreen extends StatelessWidget {
@@ -197,6 +198,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 14),
+          _ListTileCard(
+            icon: Icons.person_outline_rounded,
+            title: 'Edit profile',
+            subtitle: 'Update your email or phone',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const EditProfileScreen(),
+                ),
+              );
+            },
+          ),
           const _ListTileCard(
             icon: Icons.notifications_none_rounded,
             title: 'Notifications',
@@ -209,8 +222,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           const SizedBox(height: 8),
           TextButton(
-            onPressed: () {
-              ref.read(authProvider.notifier).signOut();
+            onPressed: () async {
+              await ref.read(authProvider.notifier).signOut();
+              if (!context.mounted) return;
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (_) => const SignInScreen()),
                 (_) => false,
@@ -287,17 +301,24 @@ class _ListTileCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.trailing,
+    this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final String? trailing;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final responsive = context.responsive;
-    return Container(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(responsive.rz(18)),
+        child: Container(
       margin: EdgeInsets.only(bottom: responsive.rz(10)),
       padding: EdgeInsets.all(responsive.rz(16)),
       decoration: BoxDecoration(
@@ -352,6 +373,8 @@ class _ListTileCard extends StatelessWidget {
             color: AppColors.textTertiary,
           ),
         ],
+      ),
+        ),
       ),
     );
   }

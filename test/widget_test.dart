@@ -6,17 +6,22 @@ import 'package:altrix/main.dart';
 import 'package:altrix/features/auth/presentation/providers/auth_providers.dart';
 
 import 'fakes/fake_auth_repository.dart';
+import 'fakes/fake_auth_session_storage.dart';
 
 void main() {
+  late FakeAuthSessionStorage fakeSessionStorage;
+
   Future<void> setPhoneSurface(WidgetTester tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 1200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
   }
 
   Widget testApp() {
+    fakeSessionStorage = FakeAuthSessionStorage();
     return ProviderScope(
       overrides: [
         authRepositoryProvider.overrideWithValue(FakeAuthRepository()),
+        authSessionStorageProvider.overrideWithValue(fakeSessionStorage),
       ],
       child: const AltrixApp(),
     );
