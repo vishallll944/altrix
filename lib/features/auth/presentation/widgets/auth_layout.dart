@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../theme/app_colors.dart';
-import 'altrix_logo.dart';
+import '../../../../theme/app_colors.dart';
+import '../../../../widgets/altrix_logo.dart';
 
 class AuthLayout extends StatelessWidget {
   const AuthLayout({
@@ -77,46 +77,46 @@ class _AuthHeader extends StatelessWidget {
             child: SizedBox(
               width: double.infinity,
               child: Padding(
-              padding: EdgeInsets.fromLTRB(24, compact ? 8 : 24, 24, 20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AltrixWordmark(compact: compact),
-                  SizedBox(height: compact ? 8 : 14),
-                  Text(
-                    'Your care, in one place',
-                    style: TextStyle(
-                      color: AppColors.textOnDark,
-                      fontSize: compact ? 15 : 17,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                  SizedBox(height: compact ? 8 : 14),
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.lock_outline_rounded,
-                        size: 14,
-                        color: AppColors.textOnDarkMuted,
+                padding: EdgeInsets.fromLTRB(24, compact ? 8 : 24, 24, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AltrixWordmark(compact: compact),
+                    SizedBox(height: compact ? 8 : 14),
+                    Text(
+                      'Your care, in one place',
+                      style: TextStyle(
+                        color: AppColors.textOnDark,
+                        fontSize: compact ? 15 : 17,
+                        fontWeight: FontWeight.w400,
                       ),
-                      SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          'HIPAA-ready  •  Your data is secure',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: AppColors.textOnDarkMuted,
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w400,
+                    ),
+                    SizedBox(height: compact ? 8 : 14),
+                    const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.lock_outline_rounded,
+                          size: 14,
+                          color: AppColors.textOnDarkMuted,
+                        ),
+                        SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'HIPAA-ready  •  Your data is secure',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: AppColors.textOnDarkMuted,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w400,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
             ),
           ),
         ],

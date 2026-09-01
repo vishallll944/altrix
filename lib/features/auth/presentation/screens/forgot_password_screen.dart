@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../theme/app_colors.dart';
-import '../widgets/app_buttons.dart';
-import '../widgets/app_text_field.dart';
+import '../../../../theme/app_colors.dart';
+import '../../../../widgets/app_buttons.dart';
+import '../../../../widgets/app_text_field.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/auth_layout.dart';
 
-class ForgotPasswordScreen extends StatefulWidget {
+class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
-  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() =>
+      _ForgotPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
-  bool _loading = false;
   bool _sent = false;
 
   @override
@@ -26,17 +28,29 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _loading = true);
-    await Future<void>.delayed(const Duration(milliseconds: 600));
+
+    final success = await ref.read(authProvider.notifier).requestPasswordReset(
+          email: _emailController.text.trim(),
+        );
     if (!mounted) return;
-    setState(() {
-      _loading = false;
-      _sent = true;
-    });
+
+    if (success) {
+      setState(() => _sent = true);
+      return;
+    }
+
+    final error = ref.read(authProvider).error;
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isLoading = ref.watch(authProvider).isLoading;
+
     return AuthLayout(
       compactHeader: true,
       child: Form(
@@ -104,7 +118,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               const SizedBox(height: 24),
               PrimaryButton(
                 label: 'Send reset link',
-                loading: _loading,
+                loading: isLoading,
                 onPressed: _submit,
               ),
               const SizedBox(height: 12),

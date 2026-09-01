@@ -1,26 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../theme/app_colors.dart';
-import '../widgets/app_buttons.dart';
-import '../widgets/app_text_field.dart';
+import '../../../../screens/main_shell.dart';
+import '../../../../theme/app_colors.dart';
+import '../../../../widgets/app_buttons.dart';
+import '../../../../widgets/app_text_field.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/auth_layout.dart';
 import 'forgot_password_screen.dart';
-import 'main_shell.dart';
 import 'otp_screen.dart';
-import 'sign_up_screen.dart';
 
-class SignInScreen extends StatefulWidget {
+class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key});
 
   @override
-  State<SignInScreen> createState() => _SignInScreenState();
+  ConsumerState<SignInScreen> createState() => _SignInScreenState();
 }
 
-class _SignInScreenState extends State<SignInScreen> {
+class _SignInScreenState extends ConsumerState<SignInScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _loading = false;
+  AutovalidateMode _autovalidateMode = AutovalidateMode.disabled;
 
   @override
   void dispose() {
@@ -30,21 +31,41 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _loading = true);
-    await Future<void>.delayed(const Duration(milliseconds: 500));
+    if (!_formKey.currentState!.validate()) {
+      setState(() => _autovalidateMode = AutovalidateMode.onUserInteraction);
+      return;
+    }
+
+    final success = await ref.read(authProvider.notifier).signIn(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const MainShell()),
-    );
+
+    if (success) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const MainShell()),
+      );
+      return;
+    }
+
+    final error = ref.read(authProvider).error;
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isLoading = ref.watch(authProvider).isLoading;
+
     return AuthLayout(
       child: AutofillGroup(
         child: Form(
           key: _formKey,
+          autovalidateMode: _autovalidateMode,
           child: ListView(
             padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
             children: [
@@ -101,7 +122,7 @@ class _SignInScreenState extends State<SignInScreen> {
               const SizedBox(height: 24),
               PrimaryButton(
                 label: 'Sign in',
-                loading: _loading,
+                loading: isLoading,
                 onPressed: _submit,
               ),
               const SizedBox(height: 14),
@@ -132,37 +153,6 @@ class _SignInScreenState extends State<SignInScreen> {
                     MaterialPageRoute(builder: (_) => const OtpScreen()),
                   );
                 },
-              ),
-              const SizedBox(height: 20),
-              Wrap(
-                alignment: WrapAlignment.center,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  const Text(
-                    'New here? ',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 14,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const SignUpScreen(),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      'Create an account',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ],
               ),
               const SizedBox(height: 20),
               const ClinicFooter(),

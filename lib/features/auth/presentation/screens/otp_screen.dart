@@ -1,26 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../theme/app_colors.dart';
-import '../widgets/app_buttons.dart';
-import '../widgets/app_text_field.dart';
+import '../../../../screens/main_shell.dart';
+import '../../../../theme/app_colors.dart';
+import '../../../../widgets/app_buttons.dart';
+import '../../../../widgets/app_text_field.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/auth_layout.dart';
-import 'main_shell.dart';
 
-class OtpScreen extends StatefulWidget {
+class OtpScreen extends ConsumerStatefulWidget {
   const OtpScreen({super.key});
 
   @override
-  State<OtpScreen> createState() => _OtpScreenState();
+  ConsumerState<OtpScreen> createState() => _OtpScreenState();
 }
 
-class _OtpScreenState extends State<OtpScreen> {
+class _OtpScreenState extends ConsumerState<OtpScreen> {
   final _emailFormKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _codeControllers = List.generate(6, (_) => TextEditingController());
   final _codeFocus = List.generate(6, (_) => FocusNode());
-  bool _sending = false;
-  bool _verifying = false;
   bool _codeSent = false;
 
   @override
@@ -37,14 +37,24 @@ class _OtpScreenState extends State<OtpScreen> {
 
   Future<void> _sendCode() async {
     if (!_emailFormKey.currentState!.validate()) return;
-    setState(() => _sending = true);
-    await Future<void>.delayed(const Duration(milliseconds: 500));
+
+    final success = await ref.read(authProvider.notifier).sendOtp(
+          email: _emailController.text.trim(),
+        );
     if (!mounted) return;
-    setState(() {
-      _sending = false;
-      _codeSent = true;
-    });
-    _codeFocus.first.requestFocus();
+
+    if (success) {
+      setState(() => _codeSent = true);
+      _codeFocus.first.requestFocus();
+      return;
+    }
+
+    final error = ref.read(authProvider).error;
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
+    }
   }
 
   Future<void> _verify() async {
@@ -55,13 +65,27 @@ class _OtpScreenState extends State<OtpScreen> {
       );
       return;
     }
-    setState(() => _verifying = true);
-    await Future<void>.delayed(const Duration(milliseconds: 500));
+
+    final success = await ref.read(authProvider.notifier).verifyOtp(
+          email: _emailController.text.trim(),
+          code: code,
+        );
     if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const MainShell()),
-      (_) => false,
-    );
+
+    if (success) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainShell()),
+        (_) => false,
+      );
+      return;
+    }
+
+    final error = ref.read(authProvider).error;
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
+    }
   }
 
   void _onCodeChanged(int index, String value) {
@@ -77,6 +101,8 @@ class _OtpScreenState extends State<OtpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isLoading = ref.watch(authProvider).isLoading;
+
     return AuthLayout(
       compactHeader: true,
       child: Form(
@@ -125,7 +151,7 @@ class _OtpScreenState extends State<OtpScreen> {
               const SizedBox(height: 24),
               PrimaryButton(
                 label: 'Send code',
-                loading: _sending,
+                loading: isLoading,
                 onPressed: _sendCode,
               ),
             ] else ...[
@@ -158,12 +184,12 @@ class _OtpScreenState extends State<OtpScreen> {
               const SizedBox(height: 24),
               PrimaryButton(
                 label: 'Verify and sign in',
-                loading: _verifying,
+                loading: isLoading,
                 onPressed: _verify,
               ),
               const SizedBox(height: 8),
               TextButton(
-                onPressed: _sending ? null : _sendCode,
+                onPressed: isLoading ? null : _sendCode,
                 child: const Text(
                   'Resend code',
                   style: TextStyle(

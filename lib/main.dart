@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'screens/sign_in_screen.dart';
+import 'features/auth/presentation/screens/sign_in_screen.dart';
 import 'theme/app_theme.dart';
 
 void main() {
-  runApp(const AltrixApp());
+  runApp(
+    const ProviderScope(
+      child: AltrixApp(),
+    ),
+  );
 }
 
 class AltrixApp extends StatelessWidget {

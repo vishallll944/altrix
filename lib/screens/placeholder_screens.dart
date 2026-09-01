@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../features/auth/presentation/providers/auth_provider.dart';
+import '../features/auth/presentation/screens/sign_in_screen.dart';
 import '../theme/app_colors.dart';
-import 'sign_in_screen.dart';
 
 class ScheduleScreen extends StatelessWidget {
   const ScheduleScreen({super.key});
@@ -87,11 +89,11 @@ class CareScreen extends StatelessWidget {
   }
 }
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return SafeArea(
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
@@ -166,6 +168,7 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: 8),
           TextButton(
             onPressed: () {
+              ref.read(authProvider.notifier).signOut();
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (_) => const SignInScreen()),
                 (_) => false,
