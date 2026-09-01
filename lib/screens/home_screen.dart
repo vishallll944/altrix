@@ -33,6 +33,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }
@@ -48,53 +49,130 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final responsive = context.responsive;
     final userName = ref.watch(authProvider).user?.name.trim() ?? '';
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
         backgroundColor: AppColors.background,
-        body: SafeArea(
-          bottom: false,
-          child: ResponsiveCenter(
-            child: ListView(
-              padding: responsive.pagePadding.copyWith(
-                top: responsive.rz(8),
-                bottom: responsive.rz(28),
+        body: Stack(
+          children: [
+            const _HomeBackground(),
+            SafeArea(
+              bottom: false,
+              child: ResponsiveCenter(
+                child: ListView(
+                  padding: responsive.pagePadding.copyWith(
+                    top: responsive.rz(12),
+                    bottom: responsive.rz(32),
+                  ),
+                  children: [
+                    _Header(
+                      greeting: _greeting,
+                      userName: userName,
+                      initials: _initials(userName),
+                    ),
+                    SizedBox(height: responsive.rz(22)),
+                    _NextSessionCard(
+                      onJoin: () => _toast('Opening Zoom…'),
+                      onDirections: () => _toast('Opening directions…'),
+                    ),
+                    SizedBox(height: responsive.rz(26)),
+                    _SectionHeader(
+                      title: 'Quick actions',
+                      subtitle: 'Everything you need, one tap away',
+                    ),
+                    SizedBox(height: responsive.rz(14)),
+                    _QuickActions(
+                      onCheckIn: () => _toast('Daily check-in is below'),
+                      onMessages: () => widget.onNavigateToTab?.call(2),
+                      onForms: () => widget.onNavigateToTab?.call(3),
+                      onResources: () => widget.onNavigateToTab?.call(3),
+                    ),
+                    SizedBox(height: responsive.rz(22)),
+                    _CheckInCard(
+                      selected: _mood,
+                      onSelect: (value) => setState(() => _mood = value),
+                      onSave: _mood == null ? null : () => _toast('Check-in saved'),
+                    ),
+                    SizedBox(height: responsive.rz(16)),
+                    const _CareTeamCard(),
+                    SizedBox(height: responsive.rz(16)),
+                    const _UpcomingCard(),
+                  ],
+                ),
               ),
-              children: [
-              _Header(
-                greeting: _greeting,
-                userName: userName,
-                initials: _initials(userName),
-              ),
-              const SizedBox(height: 18),
-              _NextSessionCard(
-                onJoin: () => _toast('Opening Zoom…'),
-                onDirections: () => _toast('Opening directions…'),
-              ),
-              const SizedBox(height: 22),
-              _QuickActions(
-                onCheckIn: () => _toast('Daily check-in is below'),
-                onMessages: () => widget.onNavigateToTab?.call(2),
-                onForms: () => widget.onNavigateToTab?.call(3),
-                onResources: () => widget.onNavigateToTab?.call(3),
-              ),
-              const SizedBox(height: 18),
-              _CheckInCard(
-                selected: _mood,
-                onSelect: (value) => setState(() => _mood = value),
-                onSave: _mood == null
-                    ? null
-                    : () => _toast('Check-in saved'),
-              ),
-              const SizedBox(height: 14),
-              const _CareTeamCard(),
-              const SizedBox(height: 14),
-              const _UpcomingCard(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeBackground extends StatelessWidget {
+  const _HomeBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 280,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppColors.primary.withValues(alpha: 0.10),
+              AppColors.primaryWash.withValues(alpha: 0.35),
+              AppColors.background.withValues(alpha: 0),
             ],
           ),
         ),
       ),
-    ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.title,
+    this.subtitle,
+  });
+
+  final String title;
+  final String? subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final responsive = context.responsive;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: responsiveTextStyle(
+            context,
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+            letterSpacing: -0.3,
+          ),
+        ),
+        if (subtitle != null) ...[
+          SizedBox(height: responsive.rz(3)),
+          Text(
+            subtitle!,
+            style: responsiveTextStyle(
+              context,
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -114,95 +192,410 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final responsive = context.responsive;
     final greetingText = userName.isEmpty ? greeting : '$greeting, $userName';
-    return Row(
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                greetingText,
-                style: responsiveTextStyle(
-                  context,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                  letterSpacing: -0.5,
-                  height: 1.15,
-                ),
-              ),
-              SizedBox(height: responsive.rz(4)),
-              Text(
-                'Divine Counseling  ·  Maryland',
-                style: responsiveTextStyle(
-                  context,
-                  fontSize: 13.5,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Container(
-          width: responsive.rz(42),
-          height: responsive.rz(42),
-          alignment: Alignment.center,
-          decoration: const BoxDecoration(
-            color: AppColors.primary,
-            shape: BoxShape.circle,
-          ),
-          child: Text(
-            initials,
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: responsive.rz(14),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Stack(
-          clipBehavior: Clip.none,
+        Row(
           children: [
-            IconButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('2 new notifications'),
-                    behavior: SnackBarBehavior.floating,
+            const Expanded(child: _TodayDateChip()),
+            SizedBox(width: responsive.rz(10)),
+            _NotificationButton(),
+          ],
+        ),
+        SizedBox(height: responsive.rz(18)),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    greetingText,
+                    style: responsiveTextStyle(
+                      context,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                      letterSpacing: -0.7,
+                      height: 1.1,
+                    ),
                   ),
-                );
-              },
-              style: IconButton.styleFrom(
-                backgroundColor: AppColors.surface,
-                foregroundColor: AppColors.primary,
-              ),
-              icon: const Icon(Icons.notifications_none_rounded),
-            ),
-            Positioned(
-              right: 6,
-              top: 6,
-              child: Container(
-                width: 16,
-                height: 16,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: AppColors.badge,
-                  shape: BoxShape.circle,
-                ),
-                child: const Text(
-                  '2',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
+                  SizedBox(height: responsive.rz(8)),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_on_rounded,
+                        size: responsive.rz(15),
+                        color: AppColors.primarySoft,
+                      ),
+                      SizedBox(width: responsive.rz(4)),
+                      Flexible(
+                        child: Text(
+                          'Divine Counseling  ·  Maryland',
+                          style: responsiveTextStyle(
+                            context,
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                ],
               ),
             ),
+            SizedBox(width: responsive.rz(12)),
+            _ProfileAvatar(initials: initials),
           ],
         ),
       ],
+    );
+  }
+}
+
+class _TodayDateChip extends StatelessWidget {
+  const _TodayDateChip();
+
+  static const _weekdays = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
+
+  static const _months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final responsive = context.responsive;
+    final now = DateTime.now();
+    final weekday = _weekdays[now.weekday - 1];
+    final month = _months[now.month - 1];
+    final day = now.day;
+    final year = now.year;
+    final isEvening = now.hour >= 17 || now.hour < 6;
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: responsive.rz(12),
+        vertical: responsive.rz(10),
+      ),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.surface.withValues(alpha: 0.95),
+            AppColors.primaryWash.withValues(alpha: 0.65),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(responsive.rz(18)),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.14),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: responsive.rz(46),
+            height: responsive.rz(46),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF9B93F8), AppColors.primary],
+              ),
+              borderRadius: BorderRadius.circular(responsive.rz(14)),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.28),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '$day',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: responsive.rz(18),
+                    fontWeight: FontWeight.w800,
+                    height: 1,
+                  ),
+                ),
+                Text(
+                  month.substring(0, 3).toUpperCase(),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: responsive.rz(9),
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.6,
+                    height: 1.1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: responsive.rz(12)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  weekday,
+                  style: responsiveTextStyle(
+                    context,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                SizedBox(height: responsive.rz(2)),
+                Text(
+                  '$month $day, $year',
+                  style: responsiveTextStyle(
+                    context,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            isEvening ? Icons.nights_stay_rounded : Icons.wb_sunny_rounded,
+            size: responsive.rz(18),
+            color: isEvening
+                ? const Color(0xFF8B83F6)
+                : const Color(0xFFF0A05A),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileAvatar extends StatelessWidget {
+  const _ProfileAvatar({required this.initials});
+
+  final String initials;
+
+  @override
+  Widget build(BuildContext context) {
+    final responsive = context.responsive;
+    final size = responsive.rz(52);
+
+    return Container(
+      width: size + 6,
+      height: size + 6,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF9B93F8), AppColors.primary],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.28),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: CircleAvatar(
+        backgroundColor: AppColors.primary,
+        child: Text(
+          initials,
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: responsive.rz(16),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationButton extends StatelessWidget {
+  const _NotificationButton();
+
+  static const _unreadCount = 2;
+
+  @override
+  Widget build(BuildContext context) {
+    final responsive = context.responsive;
+    final size = responsive.rz(52);
+    final hasUnread = _unreadCount > 0;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                hasUnread
+                    ? '$_unreadCount new notifications'
+                    : 'No new notifications',
+              ),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(responsive.rz(18)),
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.surface.withValues(alpha: 0.95),
+                AppColors.primaryWash.withValues(alpha: 0.7),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(responsive.rz(18)),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.14),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: responsive.rz(36),
+                height: responsive.rz(36),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF9B93F8), AppColors.primary],
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.25),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  hasUnread
+                      ? Icons.notifications_active_rounded
+                      : Icons.notifications_none_rounded,
+                  color: Colors.white,
+                  size: responsive.rz(20),
+                ),
+              ),
+              if (hasUnread) ...[
+                Positioned(
+                  right: responsive.rz(9),
+                  top: responsive.rz(8),
+                  child: Container(
+                    width: responsive.rz(10),
+                    height: responsive.rz(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.badge.withValues(alpha: 0.35),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: responsive.rz(10),
+                  top: responsive.rz(9),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: _unreadCount > 9
+                          ? responsive.rz(5)
+                          : responsive.rz(0),
+                    ),
+                    constraints: BoxConstraints(
+                      minWidth: responsive.rz(18),
+                      minHeight: responsive.rz(18),
+                    ),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFF6B6B), AppColors.badge],
+                      ),
+                      shape: _unreadCount > 9
+                          ? BoxShape.rectangle
+                          : BoxShape.circle,
+                      borderRadius: _unreadCount > 9
+                          ? BorderRadius.circular(10)
+                          : null,
+                      border: Border.all(color: AppColors.surface, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.badge.withValues(alpha: 0.45),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      _unreadCount > 9 ? '9+' : '$_unreadCount',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: responsive.rz(9),
+                        fontWeight: FontWeight.w800,
+                        height: 1,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -218,111 +611,231 @@ class _NextSessionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final responsive = context.responsive;
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 18, 16, 16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF14123A), Color(0xFF1A1650)],
-        ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(responsive.rz(28)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.navy.withValues(alpha: 0.28),
+            blurRadius: 28,
+            offset: const Offset(0, 14),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Next session',
-                      style: TextStyle(
-                        color: Color(0xFFB7B3E8),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    SizedBox(height: 6),
-                    Text(
-                      'Today, 2:00 PM',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.4,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Maya Patel, LCSW-C',
-                      style: TextStyle(
-                        color: Color(0xFFD8D6F0),
-                        fontSize: 14.5,
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.videocam_outlined,
-                          size: 16,
-                          color: Color(0xFFC4C0EA),
-                        ),
-                        SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            'Video visit  ·  50 min',
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Color(0xFFC4C0EA),
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(responsive.rz(28)),
+        child: Stack(
+          children: [
+            const Positioned(
+              right: -30,
+              top: -30,
+              child: _GlowOrb(size: 120, opacity: 0.18),
+            ),
+            const Positioned(
+              left: -20,
+              bottom: -40,
+              child: _GlowOrb(size: 100, opacity: 0.12),
+            ),
+            Container(
+              padding: EdgeInsets.fromLTRB(
+                responsive.rz(22),
+                responsive.rz(20),
+                responsive.rz(18),
+                responsive.rz(14),
+              ),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF12103A),
+                    Color(0xFF1C1858),
+                    Color(0xFF221A6A),
                   ],
                 ),
               ),
-              const _CalendarGraphic(),
-            ],
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: FilledButton.icon(
-              onPressed: onJoin,
-              icon: const Icon(Icons.videocam, size: 20),
-              label: const Text('Join Zoom'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: const StadiumBorder(),
-                textStyle: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.22),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: AppColors.primarySoft.withValues(alpha: 0.35),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 7,
+                                    height: 7,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFF5EC77A),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Next session',
+                                    style: responsiveTextStyle(
+                                      context,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFFD8D6F0),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(height: responsive.rz(14)),
+                            Text(
+                              'Today, 2:00 PM',
+                              style: responsiveTextStyle(
+                                context,
+                                fontSize: 26,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                letterSpacing: -0.5,
+                                height: 1.1,
+                              ),
+                            ),
+                            SizedBox(height: responsive.rz(6)),
+                            Text(
+                              'Maya Patel, LCSW-C',
+                              style: responsiveTextStyle(
+                                context,
+                                fontSize: 15,
+                                color: const Color(0xFFD8D6F0),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            SizedBox(height: responsive.rz(12)),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.videocam_rounded,
+                                    size: 16,
+                                    color: Color(0xFFC4C0EA),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Video visit  ·  50 min',
+                                    style: responsiveTextStyle(
+                                      context,
+                                      fontSize: 13,
+                                      color: const Color(0xFFC4C0EA),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const _CalendarGraphic(),
+                    ],
+                  ),
+                  SizedBox(height: responsive.rz(18)),
+                  SizedBox(
+                    width: double.infinity,
+                    height: responsive.rz(50),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(28),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF8B83F6), AppColors.primary],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.45),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: FilledButton.icon(
+                        onPressed: onJoin,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          foregroundColor: Colors.white,
+                          shape: const StadiumBorder(),
+                          textStyle: TextStyle(
+                            fontSize: responsive.rz(16),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        icon: const Icon(Icons.videocam_rounded, size: 21),
+                        label: const Text('Join Zoom'),
+                      ),
+                    ),
+                  ),
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: onDirections,
+                      icon: const Icon(
+                        Icons.near_me_rounded,
+                        size: 16,
+                        color: Color(0xFFB7B3E8),
+                      ),
+                      label: const Text(
+                        'Get directions',
+                        style: TextStyle(
+                          color: Color(0xFFB7B3E8),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          Center(
-            child: TextButton(
-              onPressed: onDirections,
-              child: const Text(
-                'Get directions',
-                style: TextStyle(
-                  color: Color(0xFFB7B3E8),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GlowOrb extends StatelessWidget {
+  const _GlowOrb({required this.size, required this.opacity});
+
+  final double size;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: AppColors.primarySoft.withValues(alpha: opacity),
       ),
     );
   }
@@ -398,37 +911,57 @@ class _QuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final responsive = context.responsive;
+    final actions = [
+      (
+        Icons.favorite_outline_rounded,
+        'Check in',
+        const [Color(0xFFFFE8EC), Color(0xFFFFC9D4)],
+        AppColors.badge,
+        onCheckIn,
+      ),
+      (
+        Icons.chat_bubble_outline_rounded,
+        'Messages',
+        const [Color(0xFFEDE9FE), Color(0xFFD8D2FF)],
+        AppColors.primary,
+        onMessages,
+      ),
+      (
+        Icons.description_outlined,
+        'Forms',
+        const [Color(0xFFE8F4FF), Color(0xFFCCE8FF)],
+        const Color(0xFF3B82F6),
+        onForms,
+      ),
+      (
+        Icons.menu_book_outlined,
+        'Resources',
+        const [Color(0xFFE8FBF0), Color(0xFFC9F0D8)],
+        AppColors.mood5,
+        onResources,
+      ),
+    ];
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final itemWidth = ((constraints.maxWidth - responsive.rz(24)) / 4)
-            .clamp(64.0, 96.0);
+        final gap = responsive.rz(10);
+        final itemWidth =
+            ((constraints.maxWidth - gap * 3) / 4).clamp(68.0, 100.0);
+
         return Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _QuickAction(
-              width: itemWidth,
-              icon: Icons.check_circle_outline_rounded,
-              label: 'Check in',
-              onTap: onCheckIn,
-            ),
-            _QuickAction(
-              width: itemWidth,
-              icon: Icons.chat_bubble_outline_rounded,
-              label: 'Messages',
-              onTap: onMessages,
-            ),
-            _QuickAction(
-              width: itemWidth,
-              icon: Icons.description_outlined,
-              label: 'Forms',
-              onTap: onForms,
-            ),
-            _QuickAction(
-              width: itemWidth,
-              icon: Icons.menu_book_outlined,
-              label: 'Resources',
-              onTap: onResources,
-            ),
+            for (var i = 0; i < actions.length; i++) ...[
+              if (i > 0) SizedBox(width: gap),
+              _QuickAction(
+                width: itemWidth,
+                icon: actions[i].$1,
+                label: actions[i].$2,
+                gradient: actions[i].$3,
+                iconColor: actions[i].$4,
+                onTap: actions[i].$5,
+              ),
+            ],
           ],
         );
       },
@@ -441,53 +974,65 @@ class _QuickAction extends StatelessWidget {
     required this.width,
     required this.icon,
     required this.label,
+    required this.gradient,
+    required this.iconColor,
     required this.onTap,
   });
 
   final double width;
   final IconData icon;
   final String label;
+  final List<Color> gradient;
+  final Color iconColor;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final responsive = context.responsive;
-    final circleSize = responsive.rz(56).clamp(48.0, 68.0);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(40),
-      child: SizedBox(
-        width: width,
-        child: Column(
-          children: [
-            Container(
-              width: circleSize,
-              height: circleSize,
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.textPrimary.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+    final circleSize = responsive.rz(58).clamp(50.0, 72.0);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: SizedBox(
+          width: width,
+          child: Column(
+            children: [
+              Container(
+                width: circleSize,
+                height: circleSize,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: gradient,
                   ),
-                ],
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: iconColor.withValues(alpha: 0.18),
+                      blurRadius: 12,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Icon(icon, color: iconColor, size: responsive.rz(24)),
               ),
-              child: Icon(icon, color: AppColors.primary, size: responsive.rz(24)),
-            ),
-            SizedBox(height: responsive.rz(8)),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: responsiveTextStyle(
-                context,
-                fontSize: 12,
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w500,
+              SizedBox(height: responsive.rz(9)),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: responsiveTextStyle(
+                  context,
+                  fontSize: 12,
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -507,31 +1052,64 @@ class _CheckInCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _WhiteCard(
+    final responsive = context.responsive;
+
+    return _SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'How are you today?',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
-            ),
+          Row(
+            children: [
+              Container(
+                width: responsive.rz(40),
+                height: responsive.rz(40),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.primaryMuted,
+                      AppColors.primaryWash,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.self_improvement_rounded,
+                  color: AppColors.primary,
+                  size: responsive.rz(22),
+                ),
+              ),
+              SizedBox(width: responsive.rz(12)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'How are you today?',
+                      style: responsiveTextStyle(
+                        context,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      'Daily wellness check-in',
+                      style: responsiveTextStyle(
+                        context,
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 2),
-          const Text(
-            'Daily check-in',
-            style: TextStyle(
-              fontSize: 13.5,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 16),
+          SizedBox(height: responsive.rz(18)),
           LayoutBuilder(
             builder: (context, constraints) {
               final moodSize =
-                  ((constraints.maxWidth - 20) / 5).clamp(30.0, 48.0);
+                  ((constraints.maxWidth - 24) / 5).clamp(32.0, 50.0);
               return Row(
                 children: List.generate(5, (index) {
                   final level = index + 1;
@@ -547,9 +1125,23 @@ class _CheckInCard extends StatelessWidget {
               );
             },
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: responsive.rz(8)),
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Struggling',
+                style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+              ),
+              Text(
+                'Great',
+                style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+              ),
+            ],
+          ),
+          SizedBox(height: responsive.rz(16)),
           SoftButton(
-            label: 'Save',
+            label: 'Save check-in',
             enabled: onSave != null,
             onPressed: onSave,
           ),
@@ -576,33 +1168,44 @@ class _MoodButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Column(
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: selected ? AppColors.primary : Colors.transparent,
-                width: 2,
-              ),
-            ),
-            child: SizedBox(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: selected ? AppColors.primary : Colors.transparent,
+            width: 2.5,
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.25),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          children: [
+            SizedBox(
               width: size,
               height: size,
               child: CustomPaint(painter: _MoodPainter(level: level)),
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '$level',
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
+            const SizedBox(height: 6),
+            Text(
+              '$level',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? AppColors.primary : AppColors.textSecondary,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -709,60 +1312,104 @@ class _CareTeamCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _WhiteCard(
+    final responsive = context.responsive;
+
+    return _SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'From your care team',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
-            ),
+          _SectionHeader(
+            title: 'From your care team',
+            subtitle: 'Updates and reminders',
           ),
-          const SizedBox(height: 12),
-          InkWell(
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Opening PHQ-9 reminder'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                children: [
-                  _UnreadDot(),
-                  SizedBox(width: 10),
-                  _MiniIcon(icon: Icons.chat_bubble_outline_rounded),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Reminder: complete PHQ-9 before Friday',
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w500,
+          SizedBox(height: responsive.rz(14)),
+          Material(
+            color: AppColors.primaryWash.withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Opening PHQ-9 reminder'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: EdgeInsets.all(responsive.rz(14)),
+                child: Row(
+                  children: [
+                    Container(
+                      width: responsive.rz(44),
+                      height: responsive.rz(44),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF9B93F8), AppColors.primary],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(
+                        Icons.chat_bubble_rounded,
+                        color: Colors.white,
+                        size: 20,
                       ),
                     ),
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    '1h',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
+                    SizedBox(width: responsive.rz(12)),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'New reminder',
+                                style: responsiveTextStyle(
+                                  context,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                '1h ago',
+                                style: responsiveTextStyle(
+                                  context,
+                                  fontSize: 11,
+                                  color: AppColors.textTertiary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: responsive.rz(4)),
+                          Text(
+                            'Complete PHQ-9 before Friday',
+                            style: responsiveTextStyle(
+                              context,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppColors.textTertiary,
-                  ),
-                ],
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: AppColors.textTertiary,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -777,35 +1424,44 @@ class _UpcomingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _WhiteCard(
+    final responsive = context.responsive;
+
+    return _SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Upcoming',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
-            ),
+          _SectionHeader(
+            title: 'Upcoming',
+            subtitle: 'Your scheduled visits',
           ),
-          SizedBox(height: 12),
-          _UpcomingRow(
+          SizedBox(height: responsive.rz(16)),
+          const _UpcomingRow(
             month: 'MAY',
             day: '15',
             weekday: 'THU',
             title: 'Thu, May 15',
             subtitle: '10:00 AM  ·  In-person',
-            trailingIcon: Icons.location_on_outlined,
+            trailingIcon: Icons.location_on_rounded,
+            accentColor: Color(0xFF3B82F6),
+            isLast: false,
           ),
-          SizedBox(height: 8),
-          _UpcomingRow(
+          Padding(
+            padding: EdgeInsets.only(left: responsive.rz(21)),
+            child: Container(
+              width: 2,
+              height: responsive.rz(16),
+              color: AppColors.border,
+            ),
+          ),
+          const _UpcomingRow(
             month: 'MAY',
             day: '20',
             weekday: 'TUE',
             title: 'Tue, May 20',
             subtitle: '2:00 PM  ·  Telehealth',
-            trailingIcon: Icons.videocam_outlined,
+            trailingIcon: Icons.videocam_rounded,
+            accentColor: AppColors.primary,
+            isLast: true,
           ),
         ],
       ),
@@ -821,6 +1477,8 @@ class _UpcomingRow extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.trailingIcon,
+    required this.accentColor,
+    required this.isLast,
   });
 
   final String month;
@@ -829,92 +1487,113 @@ class _UpcomingRow extends StatelessWidget {
   final String title;
   final String subtitle;
   final IconData trailingIcon;
+  final Color accentColor;
+  final bool isLast;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 44,
-            child: Column(
-              children: [
-                Text(
-                  month,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                    letterSpacing: 0.4,
+    final responsive = context.responsive;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {},
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: responsive.rz(6)),
+          child: Row(
+            children: [
+              Container(
+                width: responsive.rz(52),
+                padding: EdgeInsets.symmetric(vertical: responsive.rz(8)),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: accentColor.withValues(alpha: 0.18),
                   ),
                 ),
-                Text(
-                  day,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                    height: 1.1,
-                  ),
+                child: Column(
+                  children: [
+                    Text(
+                      month,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: accentColor,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    Text(
+                      day,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                        height: 1,
+                      ),
+                    ),
+                    Text(
+                      weekday,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: accentColor,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  ],
                 ),
-                Text(
-                  weekday,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                    letterSpacing: 0.4,
-                  ),
+              ),
+              SizedBox(width: responsive.rz(14)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: responsiveTextStyle(
+                        context,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    SizedBox(height: responsive.rz(3)),
+                    Text(
+                      subtitle,
+                      style: responsiveTextStyle(
+                        context,
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              Container(
+                width: responsive.rz(38),
+                height: responsive.rz(38),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(trailingIcon, size: 18, color: accentColor),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textTertiary,
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            width: 36,
-            height: 36,
-            decoration: const BoxDecoration(
-              color: AppColors.primaryWash,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(trailingIcon, size: 18, color: AppColors.primary),
-          ),
-          const Icon(
-            Icons.chevron_right_rounded,
-            color: AppColors.textTertiary,
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _WhiteCard extends StatelessWidget {
-  const _WhiteCard({required this.child});
+class _SurfaceCard extends StatelessWidget {
+  const _SurfaceCard({required this.child});
 
   final Widget child;
 
@@ -925,50 +1604,23 @@ class _WhiteCard extends StatelessWidget {
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
         responsive.rz(18),
-        responsive.rz(16),
         responsive.rz(18),
-        responsive.rz(16),
+        responsive.rz(18),
+        responsive.rz(18),
       ),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(responsive.rz(22)),
+        borderRadius: BorderRadius.circular(responsive.rz(24)),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.85)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.textPrimary.withValues(alpha: 0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: child,
-    );
-  }
-}
-
-class _UnreadDot extends StatelessWidget {
-  const _UnreadDot();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 8,
-      height: 8,
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
-        shape: BoxShape.circle,
-      ),
-    );
-  }
-}
-
-class _MiniIcon extends StatelessWidget {
-  const _MiniIcon({required this.icon});
-
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: const BoxDecoration(
-        color: AppColors.primaryWash,
-        shape: BoxShape.circle,
-      ),
-      child: Icon(icon, size: 16, color: AppColors.primary),
     );
   }
 }
