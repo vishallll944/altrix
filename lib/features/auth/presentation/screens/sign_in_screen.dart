@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/responsive/responsive.dart';
 import '../../../../screens/main_shell.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../widgets/app_buttons.dart';
 import '../../../../widgets/app_text_field.dart';
+import '../../../../widgets/exit_app_scope.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/auth_layout.dart';
-import 'forgot_password_screen.dart';
-import 'otp_screen.dart';
 
 class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key});
@@ -21,18 +21,49 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _emailFocusNode = FocusNode();
   AutovalidateMode _autovalidateMode = AutovalidateMode.disabled;
 
   @override
+  void initState() {
+    super.initState();
+    _emailFocusNode.addListener(_handleEmailFocusChange);
+  }
+
+  @override
   void dispose() {
+    _emailFocusNode.removeListener(_handleEmailFocusChange);
+    _emailFocusNode.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
+  bool _isValidEmail(String value) {
+    final email = value.trim();
+    return email.isNotEmpty && email.contains('@') && email.contains('.');
+  }
+
+  void _enableInteractionValidation() {
+    if (_autovalidateMode == AutovalidateMode.onUserInteraction) return;
+    setState(() => _autovalidateMode = AutovalidateMode.onUserInteraction);
+  }
+
+  void _handleEmailFocusChange() {
+    if (_emailFocusNode.hasFocus) return;
+    _enableInteractionValidation();
+    _formKey.currentState?.validate();
+  }
+
+  void _handleEmailChanged(String value) {
+    if (_isValidEmail(value)) {
+      _enableInteractionValidation();
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
-      setState(() => _autovalidateMode = AutovalidateMode.onUserInteraction);
+      _enableInteractionValidation();
       return;
     }
 
@@ -49,6 +80,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       return;
     }
 
+    _enableInteractionValidation();
+
     final error = ref.read(authProvider).error;
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -60,18 +93,21 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   @override
   Widget build(BuildContext context) {
     final isLoading = ref.watch(authProvider).isLoading;
+    final responsive = context.responsive;
 
-    return AuthLayout(
-      child: AutofillGroup(
-        child: Form(
-          key: _formKey,
-          autovalidateMode: _autovalidateMode,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-            children: [
-              const Text(
+    return ExitAppScope(
+      child: AuthLayout(
+        child: AutofillGroup(
+          child: Form(
+            key: _formKey,
+            autovalidateMode: _autovalidateMode,
+            child: ListView(
+              padding: responsive.authFormPadding,
+              children: [
+              Text(
                 'Sign in',
-                style: TextStyle(
+                style: responsiveTextStyle(
+                  context,
                   fontSize: 32,
                   fontWeight: FontWeight.w800,
                   color: AppColors.textPrimary,
@@ -79,84 +115,57 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   height: 1.1,
                 ),
               ),
-              const SizedBox(height: 8),
-              const Text(
+              SizedBox(height: responsive.rz(8)),
+              Text(
                 'Use the email your clinic has on file',
-                style: TextStyle(
+                style: responsiveTextStyle(
+                  context,
                   fontSize: 15,
                   color: AppColors.textSecondary,
                 ),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: responsive.rz(24)),
               AppTextField(
                 label: 'Email',
                 controller: _emailController,
-                hint: 'jordan.miller@example.com',
+                focusNode: _emailFocusNode,
+                hint: 'patient@email.com',
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.email],
+                onChanged: _handleEmailChanged,
                 validator: (value) {
                   final email = value?.trim() ?? '';
                   if (email.isEmpty) return 'Enter your email';
-                  if (!email.contains('@') || !email.contains('.')) {
+                  if (!_isValidEmail(email)) {
                     return 'Enter a valid email';
                   }
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: responsive.rz(16)),
               PasswordField(
                 label: 'Password',
                 controller: _passwordController,
                 textInputAction: TextInputAction.done,
+                onChanged: (_) => _enableInteractionValidation(),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Enter your password';
                   }
-                  if (value.length < 6) {
-                    return 'Password must be at least 6 characters';
-                  }
                   return null;
                 },
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: responsive.rz(24)),
               PrimaryButton(
                 label: 'Sign in',
                 loading: isLoading,
                 onPressed: _submit,
               ),
-              const SizedBox(height: 14),
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const ForgotPasswordScreen(),
-                    ),
-                  );
-                },
-                child: const Text(
-                  'Forgot password?',
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 4),
-              const OrDivider(),
-              const SizedBox(height: 16),
-              OutlinePillButton(
-                label: 'Use a one-time code',
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const OtpScreen()),
-                  );
-                },
-              ),
-              const SizedBox(height: 20),
+              SizedBox(height: responsive.rz(20)),
               const ClinicFooter(),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../core/responsive/responsive.dart';
 import '../theme/app_colors.dart';
+import '../widgets/exit_app_scope.dart';
 import 'home_screen.dart';
 import 'placeholder_screens.dart';
 
@@ -16,24 +18,124 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   late int _index = widget.initialIndex;
 
+  static const _destinations = [
+    _NavDestination(
+      label: 'Home',
+      icon: Icons.home_outlined,
+      selectedIcon: Icons.home_rounded,
+    ),
+    _NavDestination(
+      label: 'Schedule',
+      icon: Icons.calendar_month_outlined,
+      selectedIcon: Icons.calendar_month_rounded,
+    ),
+    _NavDestination(
+      label: 'Messages',
+      icon: Icons.chat_bubble_outline_rounded,
+      selectedIcon: Icons.chat_bubble_rounded,
+    ),
+    _NavDestination(
+      label: 'Care',
+      icon: Icons.favorite_outline_rounded,
+      selectedIcon: Icons.favorite_rounded,
+    ),
+    _NavDestination(
+      label: 'Me',
+      icon: Icons.person_outline_rounded,
+      selectedIcon: Icons.person_rounded,
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: IndexedStack(
-        index: _index,
-        children: [
-          HomeScreen(onNavigateToTab: (i) => setState(() => _index = i)),
-          const ScheduleScreen(),
-          const MessagesScreen(),
-          const CareScreen(),
-          const ProfileScreen(),
-        ],
+    final responsive = context.responsive;
+    final pages = [
+      HomeScreen(onNavigateToTab: (i) => setState(() => _index = i)),
+      const ScheduleScreen(),
+      const MessagesScreen(),
+      const CareScreen(),
+      const ProfileScreen(),
+    ];
+
+    return ExitAppScope(
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: responsive.useNavigationRail
+            ? Row(
+                children: [
+                  _AppNavigationRail(
+                    index: _index,
+                    extended: responsive.width >= 1024,
+                    onChanged: (value) => setState(() => _index = value),
+                  ),
+                  const VerticalDivider(width: 1, color: AppColors.border),
+                  Expanded(
+                    child: IndexedStack(index: _index, children: pages),
+                  ),
+                ],
+              )
+            : IndexedStack(index: _index, children: pages),
+        bottomNavigationBar: responsive.useNavigationRail
+            ? null
+            : _AppBottomNav(
+                index: _index,
+                onChanged: (value) => setState(() => _index = value),
+              ),
       ),
-      bottomNavigationBar: _AppBottomNav(
-        index: _index,
-        onChanged: (value) => setState(() => _index = value),
+    );
+  }
+}
+
+class _NavDestination {
+  const _NavDestination({
+    required this.label,
+    required this.icon,
+    required this.selectedIcon,
+  });
+
+  final String label;
+  final IconData icon;
+  final IconData selectedIcon;
+}
+
+class _AppNavigationRail extends StatelessWidget {
+  const _AppNavigationRail({
+    required this.index,
+    required this.extended,
+    required this.onChanged,
+  });
+
+  final int index;
+  final bool extended;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return NavigationRail(
+      extended: extended,
+      minExtendedWidth: 180,
+      backgroundColor: AppColors.surface,
+      selectedIndex: index,
+      onDestinationSelected: onChanged,
+      labelType: extended ? null : NavigationRailLabelType.all,
+      selectedIconTheme: const IconThemeData(color: AppColors.primary),
+      unselectedIconTheme: const IconThemeData(color: AppColors.iconMuted),
+      selectedLabelTextStyle: const TextStyle(
+        color: AppColors.primary,
+        fontWeight: FontWeight.w700,
       ),
+      unselectedLabelTextStyle: const TextStyle(
+        color: AppColors.iconMuted,
+        fontWeight: FontWeight.w500,
+      ),
+      destinations: [
+        for (final item in _MainShellState._destinations)
+          NavigationRailDestination(
+            icon: Icon(item.icon),
+            selectedIcon: Icon(item.selectedIcon),
+            label: Text(item.label),
+          ),
+      ],
     );
   }
 }
@@ -46,6 +148,9 @@ class _AppBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final responsive = context.responsive;
+    final destinations = _MainShellState._destinations;
+
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.surface,
@@ -54,44 +159,22 @@ class _AppBottomNav extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+          padding: EdgeInsets.fromLTRB(
+            responsive.rz(10),
+            responsive.rz(8),
+            responsive.rz(10),
+            responsive.rz(8),
+          ),
           child: Row(
             children: [
-              _NavItem(
-                selected: index == 0,
-                icon: Icons.home_rounded,
-                outlinedIcon: Icons.home_outlined,
-                label: 'Home',
-                onTap: () => onChanged(0),
-              ),
-              _NavItem(
-                selected: index == 1,
-                icon: Icons.calendar_month_rounded,
-                outlinedIcon: Icons.calendar_month_outlined,
-                label: 'Schedule',
-                onTap: () => onChanged(1),
-              ),
-              _NavItem(
-                selected: index == 2,
-                icon: Icons.chat_bubble_rounded,
-                outlinedIcon: Icons.chat_bubble_outline_rounded,
-                label: 'Messages',
-                onTap: () => onChanged(2),
-              ),
-              _NavItem(
-                selected: index == 3,
-                icon: Icons.favorite_rounded,
-                outlinedIcon: Icons.favorite_outline_rounded,
-                label: 'Care',
-                onTap: () => onChanged(3),
-              ),
-              _NavItem(
-                selected: index == 4,
-                icon: Icons.person_rounded,
-                outlinedIcon: Icons.person_outline_rounded,
-                label: 'Me',
-                onTap: () => onChanged(4),
-              ),
+              for (var i = 0; i < destinations.length; i++)
+                _NavItem(
+                  selected: index == i,
+                  icon: destinations[i].selectedIcon,
+                  outlinedIcon: destinations[i].icon,
+                  label: destinations[i].label,
+                  onTap: () => onChanged(i),
+                ),
             ],
           ),
         ),
@@ -117,6 +200,7 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final responsive = context.responsive;
     final color = selected ? AppColors.primary : AppColors.iconMuted;
     return Expanded(
       child: GestureDetector(
@@ -124,7 +208,7 @@ class _NavItem extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: EdgeInsets.symmetric(vertical: responsive.rz(8)),
           decoration: BoxDecoration(
             color: selected ? AppColors.primaryMuted : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
@@ -132,12 +216,16 @@ class _NavItem extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(selected ? icon : outlinedIcon, color: color, size: 22),
-              const SizedBox(height: 4),
+              Icon(
+                selected ? icon : outlinedIcon,
+                color: color,
+                size: responsive.bottomNavIconSize,
+              ),
+              SizedBox(height: responsive.rz(4)),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: responsive.bottomNavLabelSize,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   color: color,
                 ),

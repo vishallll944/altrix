@@ -1,18 +1,25 @@
-import 'user_model.dart';
+import '../../../../core/network/api_exception.dart';
+import 'client_model.dart';
 
 class LoginResponse {
   const LoginResponse({
-    required this.accessToken,
-    required this.user,
+    required this.token,
+    required this.client,
   });
 
-  final String accessToken;
-  final UserModel user;
+  final String token;
+  final ClientModel client;
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
+    if (json['success'] != true) {
+      throw ApiException(
+        json['error'] as String? ?? 'Login failed',
+      );
+    }
+
     return LoginResponse(
-      accessToken: json['access_token'] as String,
-      user: UserModel.fromJson(json['user'] as Map<String, dynamic>),
+      token: json['token'] as String,
+      client: ClientModel.fromJson(json['client'] as Map<String, dynamic>),
     );
   }
 }

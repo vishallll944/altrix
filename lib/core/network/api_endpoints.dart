@@ -1,10 +1,7 @@
-/// Central place for API route paths.
-/// Update these when your backend contract is finalized.
 class ApiEndpoints {
   const ApiEndpoints._();
 
-  static const authLogin = '/auth/login';
-  static const authForgotPassword = '/auth/forgot-password';
-  static const authOtpSend = '/auth/otp/send';
-  static const authOtpVerify = '/auth/otp/verify';
+  static const patientLogin = '/api/patient/login';
+  static const patientMe = '/api/patient/me';
+  static const patientInviteAccept = '/api/patient/invite/accept';
 }

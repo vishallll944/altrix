@@ -1,4 +1,5 @@
 import '../entities/auth_result.dart';
+import '../entities/user.dart';
 
 abstract class AuthRepository {
   Future<AuthResult> signIn({
@@ -6,12 +7,10 @@ abstract class AuthRepository {
     required String password,
   });
 
-  Future<void> requestPasswordReset({required String email});
+  Future<User> getProfile();
 
-  Future<void> sendOtp({required String email});
-
-  Future<AuthResult> verifyOtp({
-    required String email,
-    required String code,
+  Future<void> acceptInvite({
+    required String token,
+    required String password,
   });
 }

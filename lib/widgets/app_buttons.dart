@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/responsive/responsive.dart';
 import '../theme/app_colors.dart';
 
 class PrimaryButton extends StatelessWidget {
@@ -18,9 +19,10 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final height = context.responsive.buttonHeight;
     return SizedBox(
       width: double.infinity,
-      height: 54,
+      height: height,
       child: FilledButton(
         onPressed: loading ? null : onPressed,
         style: FilledButton.styleFrom(
@@ -28,8 +30,8 @@ class PrimaryButton extends StatelessWidget {
           disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.45),
           foregroundColor: Colors.white,
           shape: const StadiumBorder(),
-          textStyle: const TextStyle(
-            fontSize: 16,
+          textStyle: TextStyle(
+            fontSize: context.responsive.rz(16),
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -69,17 +71,18 @@ class OutlinePillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final height = context.responsive.buttonHeight;
     return SizedBox(
       width: double.infinity,
-      height: 54,
+      height: height,
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.primary,
           side: const BorderSide(color: AppColors.primary, width: 1.4),
           shape: const StadiumBorder(),
-          textStyle: const TextStyle(
-            fontSize: 16,
+          textStyle: TextStyle(
+            fontSize: context.responsive.rz(16),
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -103,9 +106,10 @@ class SoftButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final height = context.responsive.rz(48).clamp(44.0, 56.0);
     return SizedBox(
       width: double.infinity,
-      height: 48,
+      height: height,
       child: FilledButton(
         onPressed: enabled ? onPressed : null,
         style: FilledButton.styleFrom(
@@ -117,8 +121,8 @@ class SoftButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          textStyle: const TextStyle(
-            fontSize: 16,
+          textStyle: TextStyle(
+            fontSize: context.responsive.rz(16),
             fontWeight: FontWeight.w600,
           ),
         ),

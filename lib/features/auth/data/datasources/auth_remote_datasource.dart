@@ -3,11 +3,10 @@ import 'package:dio/dio.dart';
 import '../../../../core/config/env.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/network/api_exception.dart';
-import '../models/forgot_password_request.dart';
+import '../models/invite_accept_request.dart';
 import '../models/login_request.dart';
 import '../models/login_response.dart';
-import '../models/otp_request.dart';
-import '../models/verify_otp_request.dart';
+import '../models/profile_response.dart';
 
 class AuthRemoteDataSource {
   const AuthRemoteDataSource(this._dio);
@@ -26,7 +25,7 @@ class AuthRemoteDataSource {
     _ensureApiConfigured();
     try {
       final response = await _dio.post<Map<String, dynamic>>(
-        ApiEndpoints.authLogin,
+        ApiEndpoints.patientLogin,
         data: request.toJson(),
       );
       return LoginResponse.fromJson(response.data!);
@@ -35,38 +34,32 @@ class AuthRemoteDataSource {
     }
   }
 
-  Future<void> forgotPassword(ForgotPasswordRequest request) async {
+  Future<ProfileResponse> getProfile() async {
     _ensureApiConfigured();
     try {
-      await _dio.post<void>(
-        ApiEndpoints.authForgotPassword,
-        data: request.toJson(),
+      final response = await _dio.get<Map<String, dynamic>>(
+        ApiEndpoints.patientMe,
       );
+      return ProfileResponse.fromJson(response.data!);
     } on DioException catch (error) {
       throw ApiException.fromDio(error);
     }
   }
 
-  Future<void> sendOtp(OtpRequest request) async {
-    _ensureApiConfigured();
-    try {
-      await _dio.post<void>(
-        ApiEndpoints.authOtpSend,
-        data: request.toJson(),
-      );
-    } on DioException catch (error) {
-      throw ApiException.fromDio(error);
-    }
-  }
-
-  Future<LoginResponse> verifyOtp(VerifyOtpRequest request) async {
+  Future<void> acceptInvite(InviteAcceptRequest request) async {
     _ensureApiConfigured();
     try {
       final response = await _dio.post<Map<String, dynamic>>(
-        ApiEndpoints.authOtpVerify,
+        ApiEndpoints.patientInviteAccept,
         data: request.toJson(),
       );
-      return LoginResponse.fromJson(response.data!);
+      final data = response.data;
+      if (data != null && data['success'] == false) {
+        throw ApiException(
+          data['error'] as String? ?? 'Could not set password',
+          statusCode: response.statusCode,
+        );
+      }
     } on DioException catch (error) {
       throw ApiException.fromDio(error);
     }

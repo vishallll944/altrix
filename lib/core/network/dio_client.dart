@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/env.dart';
 import 'interceptors/auth_interceptor.dart';
+import 'interceptors/unauthorized_interceptor.dart';
 
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(
@@ -17,7 +18,10 @@ final dioProvider = Provider<Dio>((ref) {
     ),
   );
 
-  dio.interceptors.add(createAuthInterceptor(ref));
+  dio.interceptors.addAll([
+    createAuthInterceptor(ref),
+    createUnauthorizedInterceptor(ref),
+  ]);
 
   return dio;
 });

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/responsive/responsive.dart';
+import '../../../../core/responsive/responsive_widgets.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../widgets/altrix_logo.dart';
 
@@ -16,26 +18,34 @@ class AuthLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final responsive = context.responsive;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: AppColors.navy,
-        body: Column(
-          children: [
-            _AuthHeader(compact: compactHeader),
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(32),
+        body: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: responsive.isPhone ? double.infinity : 560,
+            ),
+            child: Column(
+              children: [
+                _AuthHeader(compact: compactHeader),
+                Expanded(
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(responsive.rz(32)),
+                      ),
+                    ),
+                    child: ResponsiveFormContainer(child: child),
                   ),
                 ),
-                child: child,
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -49,6 +59,7 @@ class _AuthHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final responsive = context.responsive;
     return ColoredBox(
       color: AppColors.navy,
       child: Stack(
@@ -77,37 +88,42 @@ class _AuthHeader extends StatelessWidget {
             child: SizedBox(
               width: double.infinity,
               child: Padding(
-                padding: EdgeInsets.fromLTRB(24, compact ? 8 : 24, 24, 20),
+                padding: EdgeInsets.fromLTRB(
+                  responsive.rz(24),
+                  compact ? responsive.rz(8) : responsive.rz(24),
+                  responsive.rz(24),
+                  responsive.rz(20),
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     AltrixWordmark(compact: compact),
-                    SizedBox(height: compact ? 8 : 14),
+                    SizedBox(height: compact ? responsive.rz(8) : responsive.rz(14)),
                     Text(
                       'Your care, in one place',
                       style: TextStyle(
                         color: AppColors.textOnDark,
-                        fontSize: compact ? 15 : 17,
+                        fontSize: responsive.rz(compact ? 15 : 17),
                         fontWeight: FontWeight.w400,
                       ),
                     ),
-                    SizedBox(height: compact ? 8 : 14),
-                    const Row(
+                    SizedBox(height: compact ? responsive.rz(8) : responsive.rz(14)),
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
                           Icons.lock_outline_rounded,
-                          size: 14,
+                          size: responsive.rz(14),
                           color: AppColors.textOnDarkMuted,
                         ),
-                        SizedBox(width: 6),
+                        SizedBox(width: responsive.rz(6)),
                         Flexible(
                           child: Text(
                             'HIPAA-ready  •  Your data is secure',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: AppColors.textOnDarkMuted,
-                              fontSize: 12.5,
+                              fontSize: responsive.rz(12.5),
                               fontWeight: FontWeight.w400,
                             ),
                           ),

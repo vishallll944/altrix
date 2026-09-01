@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:altrix/main.dart';
 import 'package:altrix/features/auth/presentation/providers/auth_providers.dart';
-import 'package:altrix/screens/main_shell.dart';
 
 import 'fakes/fake_auth_repository.dart';
 
@@ -23,18 +22,25 @@ void main() {
     );
   }
 
+  Future<void> pumpPastSplash(WidgetTester tester) async {
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 3000));
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('Sign in screen renders', (tester) async {
     await setPhoneSurface(tester);
     await tester.pumpWidget(testApp());
+    await pumpPastSplash(tester);
 
     expect(find.text('Sign in'), findsWidgets);
     expect(find.text('Your care, in one place'), findsOneWidget);
-    expect(find.text('Use a one-time code'), findsOneWidget);
   });
 
   testWidgets('Sign in opens the home screen', (tester) async {
     await setPhoneSurface(tester);
     await tester.pumpWidget(testApp());
+    await pumpPastSplash(tester);
 
     await tester.enterText(
       find.byType(TextFormField).first,
@@ -49,14 +55,28 @@ void main() {
     expect(find.text('Join Zoom'), findsOneWidget);
     expect(find.text('How are you today?'), findsOneWidget);
     expect(find.text('From your care team'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Upcoming'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Upcoming'), findsOneWidget);
   });
 
   testWidgets('Home tabs and check-in are usable', (tester) async {
     await setPhoneSurface(tester);
-    await tester.pumpWidget(
-      const MaterialApp(home: MainShell()),
+    await tester.pumpWidget(testApp());
+    await pumpPastSplash(tester);
+
+    await tester.enterText(
+      find.byType(TextFormField).first,
+      'maya@example.com',
     );
+    await tester.enterText(find.byType(TextFormField).at(1), 'password');
+    await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pumpAndSettle();
 
     expect(find.text('Join Zoom'), findsOneWidget);
 

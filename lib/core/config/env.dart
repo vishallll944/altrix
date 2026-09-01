@@ -1,7 +1,5 @@
-/// App environment values.
-///
-/// Set the API URL when your backend is ready:
-/// `flutter run --dart-define=API_BASE_URL=https://your-api.com/v1`
+/// Set when your backend is ready:
+/// `flutter run --dart-define=API_BASE_URL=https://your-domain.com`
 class Env {
   const Env._();
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/responsive/responsive.dart';
 import '../theme/app_colors.dart';
 
 class AppTextField extends StatelessWidget {
@@ -35,18 +36,19 @@ class AppTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final responsive = context.responsive;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 13.5,
+          style: TextStyle(
+            fontSize: responsive.rz(13.5),
             fontWeight: FontWeight.w500,
             color: AppColors.textPrimary,
           ),
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: responsive.rz(8)),
         TextFormField(
           controller: controller,
           focusNode: focusNode,
@@ -57,8 +59,8 @@ class AppTextField extends StatelessWidget {
           autofillHints: autofillHints,
           onChanged: onChanged,
           inputFormatters: inputFormatters,
-          style: const TextStyle(
-            fontSize: 15.5,
+          style: TextStyle(
+            fontSize: responsive.rz(15.5),
             color: AppColors.textPrimary,
             fontWeight: FontWeight.w500,
           ),
@@ -80,6 +82,7 @@ class PasswordField extends StatefulWidget {
     this.hint,
     this.validator,
     this.textInputAction,
+    this.onChanged,
   });
 
   final String label;
@@ -87,6 +90,7 @@ class PasswordField extends StatefulWidget {
   final String? hint;
   final String? Function(String?)? validator;
   final TextInputAction? textInputAction;
+  final ValueChanged<String>? onChanged;
 
   @override
   State<PasswordField> createState() => _PasswordFieldState();
@@ -104,6 +108,7 @@ class _PasswordFieldState extends State<PasswordField> {
       obscureText: _obscure,
       validator: widget.validator,
       textInputAction: widget.textInputAction,
+      onChanged: widget.onChanged,
       autofillHints: const [AutofillHints.password],
       suffix: IconButton(
         onPressed: () => setState(() => _obscure = !_obscure),

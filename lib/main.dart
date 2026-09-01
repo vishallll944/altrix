@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'features/auth/presentation/screens/sign_in_screen.dart';
+import 'core/navigation/app_navigator.dart';
+import 'core/responsive/responsive_widgets.dart';
+import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
 
 void main() {
@@ -18,10 +20,12 @@ class AltrixApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: rootNavigatorKey,
       title: 'Altrixs',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
-      home: const SignInScreen(),
+      builder: (context, child) => ResponsiveAppBuilder(child: child!),
+      home: const SplashScreen(),
     );
   }
 }

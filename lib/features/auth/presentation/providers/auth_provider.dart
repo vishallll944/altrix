@@ -21,9 +21,10 @@ class AuthState {
     bool? isLoading,
     String? error,
     bool clearError = false,
+    bool clearUser = false,
   }) {
     return AuthState(
-      user: user ?? this.user,
+      user: clearUser ? null : (user ?? this.user),
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
     );
@@ -44,69 +45,37 @@ class AuthNotifier extends Notifier<AuthState> {
             email: email,
             password: password,
           );
-      ref.read(authTokenProvider.notifier).state = result.accessToken;
-      state = AuthState(user: result.user);
+      ref.read(authTokenProvider.notifier).state = result.token;
+
+      final profile = await ref.read(authRepositoryProvider).getProfile();
+      state = AuthState(user: profile);
       return true;
     } on ApiException catch (error) {
-      state = state.copyWith(isLoading: false, error: error.message);
+      ref.read(authTokenProvider.notifier).state = null;
+      state = state.copyWith(isLoading: false, error: error.message, clearUser: true);
       return false;
     } catch (_) {
+      ref.read(authTokenProvider.notifier).state = null;
       state = state.copyWith(
         isLoading: false,
+        clearUser: true,
         error: 'Something went wrong. Please try again.',
       );
       return false;
     }
   }
 
-  Future<bool> requestPasswordReset({required String email}) async {
-    state = state.copyWith(isLoading: true, clearError: true);
-    try {
-      await ref.read(authRepositoryProvider).requestPasswordReset(email: email);
-      state = state.copyWith(isLoading: false);
-      return true;
-    } on ApiException catch (error) {
-      state = state.copyWith(isLoading: false, error: error.message);
-      return false;
-    } catch (_) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Something went wrong. Please try again.',
-      );
-      return false;
-    }
-  }
-
-  Future<bool> sendOtp({required String email}) async {
-    state = state.copyWith(isLoading: true, clearError: true);
-    try {
-      await ref.read(authRepositoryProvider).sendOtp(email: email);
-      state = state.copyWith(isLoading: false);
-      return true;
-    } on ApiException catch (error) {
-      state = state.copyWith(isLoading: false, error: error.message);
-      return false;
-    } catch (_) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Something went wrong. Please try again.',
-      );
-      return false;
-    }
-  }
-
-  Future<bool> verifyOtp({
-    required String email,
-    required String code,
+  Future<bool> acceptInvite({
+    required String token,
+    required String password,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final result = await ref.read(authRepositoryProvider).verifyOtp(
-            email: email,
-            code: code,
+      await ref.read(authRepositoryProvider).acceptInvite(
+            token: token,
+            password: password,
           );
-      ref.read(authTokenProvider.notifier).state = result.accessToken;
-      state = AuthState(user: result.user);
+      state = state.copyWith(isLoading: false);
       return true;
     } on ApiException catch (error) {
       state = state.copyWith(isLoading: false, error: error.message);
@@ -117,6 +86,17 @@ class AuthNotifier extends Notifier<AuthState> {
         error: 'Something went wrong. Please try again.',
       );
       return false;
+    }
+  }
+
+  Future<void> refreshProfile() async {
+    if (ref.read(authTokenProvider) == null) return;
+
+    try {
+      final profile = await ref.read(authRepositoryProvider).getProfile();
+      state = state.copyWith(user: profile, clearError: true);
+    } on ApiException catch (error) {
+      state = state.copyWith(error: error.message);
     }
   }
 

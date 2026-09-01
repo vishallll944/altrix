@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/responsive/responsive.dart';
+import '../core/responsive/responsive_widgets.dart';
 import '../features/auth/presentation/providers/auth_provider.dart';
 import '../features/auth/presentation/screens/sign_in_screen.dart';
 import '../theme/app_colors.dart';
@@ -89,23 +91,51 @@ class CareScreen extends StatelessWidget {
   }
 }
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() => ref.read(authProvider.notifier).refreshProfile());
+  }
+
+  String _initials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty || parts.first.isEmpty) return '?';
+    if (parts.length == 1) return parts.first[0].toUpperCase();
+    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = ref.watch(authProvider).user;
+    final displayName = user?.name ?? 'Patient';
+    final email = user?.email ?? '';
+    final phone = user?.phone ?? '';
+
     return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-        children: [
-          const Text(
-            'Me',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
-            ),
+      child: ResponsiveCenter(
+        child: ListView(
+          padding: context.responsive.pagePadding.copyWith(
+            top: context.responsive.rz(16),
+            bottom: context.responsive.rz(28),
           ),
+          children: [
+            Text(
+              'Me',
+              style: responsiveTextStyle(
+                context,
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
+            ),
           const SizedBox(height: 18),
           Container(
             padding: const EdgeInsets.all(18),
@@ -113,41 +143,53 @@ class ProfileScreen extends ConsumerWidget {
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(22),
             ),
-            child: const Row(
+            child: Row(
               children: [
                 CircleAvatar(
                   radius: 28,
                   backgroundColor: AppColors.primary,
                   child: Text(
-                    'MP',
-                    style: TextStyle(
+                    _initials(displayName),
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
                       fontSize: 18,
                     ),
                   ),
                 ),
-                SizedBox(width: 14),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Maya Patel',
-                        style: TextStyle(
+                        displayName,
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary,
                         ),
                       ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Divine Counseling  ·  Maryland',
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 13.5,
+                      if (email.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          email,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13.5,
+                          ),
                         ),
-                      ),
+                      ],
+                      if (phone.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          phone,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13.5,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -184,6 +226,7 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -202,29 +245,37 @@ class _SimpleScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final responsive = context.responsive;
     return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
-            ),
+      child: ResponsiveCenter(
+        child: ListView(
+          padding: responsive.pagePadding.copyWith(
+            top: responsive.rz(16),
+            bottom: responsive.rz(28),
           ),
-          const SizedBox(height: 6),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              fontSize: 14.5,
-              color: AppColors.textSecondary,
+          children: [
+            Text(
+              title,
+              style: responsiveTextStyle(
+                context,
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
             ),
-          ),
-          const SizedBox(height: 18),
-          ...children,
-        ],
+            SizedBox(height: responsive.rz(6)),
+            Text(
+              subtitle,
+              style: responsiveTextStyle(
+                context,
+                fontSize: 14.5,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            SizedBox(height: responsive.rz(18)),
+            ...children,
+          ],
+        ),
       ),
     );
   }
@@ -245,12 +296,13 @@ class _ListTileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final responsive = context.responsive;
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
+      margin: EdgeInsets.only(bottom: responsive.rz(10)),
+      padding: EdgeInsets.all(responsive.rz(16)),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(responsive.rz(18)),
       ),
       child: Row(
         children: [

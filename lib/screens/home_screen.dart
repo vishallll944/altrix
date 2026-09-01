@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/responsive/responsive.dart';
+import '../core/responsive/responsive_widgets.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_buttons.dart';
 
@@ -35,15 +37,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final responsive = context.responsive;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: SafeArea(
           bottom: false,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-            children: [
+          child: ResponsiveCenter(
+            child: ListView(
+              padding: responsive.pagePadding.copyWith(
+                top: responsive.rz(8),
+                bottom: responsive.rz(28),
+              ),
+              children: [
               _Header(greeting: _greeting),
               const SizedBox(height: 18),
               _NextSessionCard(
@@ -73,6 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 }
@@ -84,6 +92,7 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final responsive = context.responsive;
     return Row(
       children: [
         Expanded(
@@ -92,7 +101,8 @@ class _Header extends StatelessWidget {
             children: [
               Text(
                 '$greeting, Maya',
-                style: const TextStyle(
+                style: responsiveTextStyle(
+                  context,
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
                   color: AppColors.textPrimary,
@@ -100,10 +110,11 @@ class _Header extends StatelessWidget {
                   height: 1.15,
                 ),
               ),
-              const SizedBox(height: 4),
-              const Text(
+              SizedBox(height: responsive.rz(4)),
+              Text(
                 'Divine Counseling  ·  Maryland',
-                style: TextStyle(
+                style: responsiveTextStyle(
+                  context,
                   fontSize: 13.5,
                   color: AppColors.textSecondary,
                 ),
@@ -112,8 +123,8 @@ class _Header extends StatelessWidget {
           ),
         ),
         Container(
-          width: 42,
-          height: 42,
+          width: responsive.rz(42),
+          height: responsive.rz(42),
           alignment: Alignment.center,
           decoration: const BoxDecoration(
             color: AppColors.primary,
@@ -365,57 +376,72 @@ class _QuickActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        _QuickAction(
-          icon: Icons.check_circle_outline_rounded,
-          label: 'Check in',
-          onTap: onCheckIn,
-        ),
-        _QuickAction(
-          icon: Icons.chat_bubble_outline_rounded,
-          label: 'Messages',
-          onTap: onMessages,
-        ),
-        _QuickAction(
-          icon: Icons.description_outlined,
-          label: 'Forms',
-          onTap: onForms,
-        ),
-        _QuickAction(
-          icon: Icons.menu_book_outlined,
-          label: 'Resources',
-          onTap: onResources,
-        ),
-      ],
+    final responsive = context.responsive;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final itemWidth = ((constraints.maxWidth - responsive.rz(24)) / 4)
+            .clamp(64.0, 96.0);
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _QuickAction(
+              width: itemWidth,
+              icon: Icons.check_circle_outline_rounded,
+              label: 'Check in',
+              onTap: onCheckIn,
+            ),
+            _QuickAction(
+              width: itemWidth,
+              icon: Icons.chat_bubble_outline_rounded,
+              label: 'Messages',
+              onTap: onMessages,
+            ),
+            _QuickAction(
+              width: itemWidth,
+              icon: Icons.description_outlined,
+              label: 'Forms',
+              onTap: onForms,
+            ),
+            _QuickAction(
+              width: itemWidth,
+              icon: Icons.menu_book_outlined,
+              label: 'Resources',
+              onTap: onResources,
+            ),
+          ],
+        );
+      },
     );
   }
 }
 
 class _QuickAction extends StatelessWidget {
   const _QuickAction({
+    required this.width,
     required this.icon,
     required this.label,
     required this.onTap,
   });
 
+  final double width;
   final IconData icon;
   final String label;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final responsive = context.responsive;
+    final circleSize = responsive.rz(56).clamp(48.0, 68.0);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(40),
       child: SizedBox(
-        width: 72,
+        width: width,
         child: Column(
           children: [
             Container(
-              width: 56,
-              height: 56,
+              width: circleSize,
+              height: circleSize,
               decoration: BoxDecoration(
                 color: AppColors.surface,
                 shape: BoxShape.circle,
@@ -427,13 +453,14 @@ class _QuickAction extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Icon(icon, color: AppColors.primary, size: 24),
+              child: Icon(icon, color: AppColors.primary, size: responsive.rz(24)),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: responsive.rz(8)),
             Text(
               label,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: responsiveTextStyle(
+                context,
                 fontSize: 12,
                 color: AppColors.textSecondary,
                 fontWeight: FontWeight.w500,
@@ -480,16 +507,24 @@ class _CheckInCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(5, (index) {
-              final level = index + 1;
-              return _MoodButton(
-                level: level,
-                selected: selected == level,
-                onTap: () => onSelect(level),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final moodSize =
+                  ((constraints.maxWidth - 20) / 5).clamp(30.0, 48.0);
+              return Row(
+                children: List.generate(5, (index) {
+                  final level = index + 1;
+                  return Expanded(
+                    child: _MoodButton(
+                      level: level,
+                      size: moodSize,
+                      selected: selected == level,
+                      onTap: () => onSelect(level),
+                    ),
+                  );
+                }),
               );
-            }),
+            },
           ),
           const SizedBox(height: 16),
           SoftButton(
@@ -506,11 +541,13 @@ class _CheckInCard extends StatelessWidget {
 class _MoodButton extends StatelessWidget {
   const _MoodButton({
     required this.level,
+    required this.size,
     required this.selected,
     required this.onTap,
   });
 
   final int level;
+  final double size;
   final bool selected;
   final VoidCallback onTap;
 
@@ -531,8 +568,8 @@ class _MoodButton extends StatelessWidget {
               ),
             ),
             child: SizedBox(
-              width: 40,
-              height: 40,
+              width: size,
+              height: size,
               child: CustomPaint(painter: _MoodPainter(level: level)),
             ),
           ),
@@ -862,12 +899,18 @@ class _WhiteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final responsive = context.responsive;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      padding: EdgeInsets.fromLTRB(
+        responsive.rz(18),
+        responsive.rz(16),
+        responsive.rz(18),
+        responsive.rz(16),
+      ),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(responsive.rz(22)),
       ),
       child: child,
     );
