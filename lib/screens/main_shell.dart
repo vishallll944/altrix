@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../core/responsive/responsive.dart';
 import '../theme/app_colors.dart';
@@ -16,7 +17,10 @@ class MainShell extends StatefulWidget {
 }
 
 class _MainShellState extends State<MainShell> {
+  static const _transitionDuration = Duration(milliseconds: 320);
+
   late int _index = widget.initialIndex;
+  late int _previousIndex = widget.initialIndex;
 
   static const _destinations = [
     _NavDestination(
@@ -46,16 +50,32 @@ class _MainShellState extends State<MainShell> {
     ),
   ];
 
+  void _onTabSelected(int value) {
+    if (value == _index) return;
+    HapticFeedback.selectionClick();
+    setState(() {
+      _previousIndex = _index;
+      _index = value;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final responsive = context.responsive;
     final pages = [
-      HomeScreen(onNavigateToTab: (i) => setState(() => _index = i)),
+      HomeScreen(onNavigateToTab: _onTabSelected),
       const ScheduleScreen(),
       const MessagesScreen(),
       const CareScreen(),
       const ProfileScreen(),
     ];
+
+    final body = _AnimatedTabBody(
+      index: _index,
+      previousIndex: _previousIndex,
+      duration: _transitionDuration,
+      children: pages,
+    );
 
     return ExitAppScope(
       child: Scaffold(
@@ -66,21 +86,106 @@ class _MainShellState extends State<MainShell> {
                   _AppNavigationRail(
                     index: _index,
                     extended: responsive.width >= 1024,
-                    onChanged: (value) => setState(() => _index = value),
+                    onChanged: _onTabSelected,
                   ),
                   const VerticalDivider(width: 1, color: AppColors.border),
-                  Expanded(
-                    child: IndexedStack(index: _index, children: pages),
-                  ),
+                  Expanded(child: body),
                 ],
               )
-            : IndexedStack(index: _index, children: pages),
+            : body,
         bottomNavigationBar: responsive.useNavigationRail
             ? null
             : _AppBottomNav(
                 index: _index,
-                onChanged: (value) => setState(() => _index = value),
+                onChanged: _onTabSelected,
               ),
+      ),
+    );
+  }
+}
+
+class _AnimatedTabBody extends StatelessWidget {
+  const _AnimatedTabBody({
+    required this.index,
+    required this.previousIndex,
+    required this.duration,
+    required this.children,
+  });
+
+  final int index;
+  final int previousIndex;
+  final Duration duration;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final direction = index == previousIndex
+        ? 0
+        : index > previousIndex
+            ? 1
+            : -1;
+
+    // Paint the active tab last so it stays above fading-out screens.
+    final orderedIndices = [
+      for (var i = 0; i < children.length; i++)
+        if (i != index) i,
+      index,
+    ];
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        for (final i in orderedIndices)
+          _TabTransitionView(
+            key: ValueKey('tab_$i'),
+            isActive: index == i,
+            direction: direction,
+            duration: duration,
+            child: children[i],
+          ),
+      ],
+    );
+  }
+}
+
+class _TabTransitionView extends StatelessWidget {
+  const _TabTransitionView({
+    super.key,
+    required this.isActive,
+    required this.direction,
+    required this.duration,
+    required this.child,
+  });
+
+  final bool isActive;
+  final int direction;
+  final Duration duration;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final inactiveOffset = Offset(direction * 0.045, 0.012);
+
+    return IgnorePointer(
+      ignoring: !isActive,
+      child: AnimatedOpacity(
+        opacity: isActive ? 1 : 0,
+        duration: duration,
+        curve: Curves.easeInOutCubic,
+        child: AnimatedSlide(
+          offset: isActive ? Offset.zero : inactiveOffset,
+          duration: duration,
+          curve: Curves.easeOutCubic,
+          child: AnimatedScale(
+            scale: isActive ? 1 : 0.985,
+            duration: duration,
+            curve: Curves.easeOutCubic,
+            child: TickerMode(
+              enabled: isActive,
+              child: child,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -152,9 +257,16 @@ class _AppBottomNav extends StatelessWidget {
     final destinations = _MainShellState._destinations;
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.border)),
+        border: Border(top: BorderSide(color: AppColors.border.withValues(alpha: 0.9))),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.navy.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
       ),
       child: SafeArea(
         top: false,
@@ -202,12 +314,14 @@ class _NavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final responsive = context.responsive;
     final color = selected ? AppColors.primary : AppColors.iconMuted;
+
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
           padding: EdgeInsets.symmetric(vertical: responsive.rz(8)),
           decoration: BoxDecoration(
             color: selected ? AppColors.primaryMuted : Colors.transparent,
@@ -216,19 +330,46 @@ class _NavItem extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                selected ? icon : outlinedIcon,
-                color: color,
-                size: responsive.bottomNavIconSize,
+              AnimatedScale(
+                scale: selected ? 1.08 : 1,
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOutBack,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: ScaleTransition(
+                        scale: Tween<double>(begin: 0.85, end: 1).animate(
+                          CurvedAnimation(
+                            parent: animation,
+                            curve: Curves.easeOutBack,
+                          ),
+                        ),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: Icon(
+                    selected ? icon : outlinedIcon,
+                    key: ValueKey(selected),
+                    color: color,
+                    size: responsive.bottomNavIconSize,
+                  ),
+                ),
               ),
               SizedBox(height: responsive.rz(4)),
-              Text(
-                label,
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOutCubic,
                 style: TextStyle(
                   fontSize: responsive.bottomNavLabelSize,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   color: color,
                 ),
+                child: Text(label),
               ),
             ],
           ),

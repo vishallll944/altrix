@@ -28,17 +28,7 @@ class ScheduleScreen extends StatelessWidget {
                   bottom: responsive.rz(32),
                 ),
                 children: [
-                  Text(
-                    'Schedule',
-                    style: responsiveTextStyle(
-                      context,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  SizedBox(height: responsive.rz(6)),
+
                   Text(
                     'Upcoming visits with your care team',
                     style: responsiveTextStyle(
@@ -701,17 +691,7 @@ class MessagesScreen extends StatelessWidget {
                   bottom: responsive.rz(32),
                 ),
                 children: [
-                  Text(
-                    'Messages',
-                    style: responsiveTextStyle(
-                      context,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  SizedBox(height: responsive.rz(6)),
+
                   Text(
                     'Secure messages from your clinic',
                     style: responsiveTextStyle(
@@ -799,17 +779,7 @@ class CareScreen extends StatelessWidget {
                   bottom: responsive.rz(32),
                 ),
                 children: [
-                  Text(
-                    'Care',
-                    style: responsiveTextStyle(
-                      context,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  SizedBox(height: responsive.rz(6)),
+
                   Text(
                     'Forms and resources from your clinic',
                     style: responsiveTextStyle(
@@ -1641,17 +1611,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   bottom: responsive.rz(32),
                 ),
                 children: [
-                  Text(
-                    'Me',
-                    style: responsiveTextStyle(
-                      context,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  SizedBox(height: responsive.rz(6)),
+
                   Text(
                     'Your account & preferences',
                     style: responsiveTextStyle(
