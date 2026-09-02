@@ -1835,13 +1835,17 @@ class _ProfileHeroCard extends StatelessWidget {
                           color: const Color(0xFFD8D6F0),
                         ),
                         SizedBox(width: responsive.rz(6)),
-                        Text(
-                          'Altrixs patient',
-                          style: responsiveTextStyle(
-                            context,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFFD8D6F0),
+                        Flexible(
+                          child: Text(
+                            'Altrixs patient',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: responsiveTextStyle(
+                              context,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFFD8D6F0),
+                            ),
                           ),
                         ),
                       ],

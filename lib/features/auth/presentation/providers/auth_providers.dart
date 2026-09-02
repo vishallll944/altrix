@@ -30,5 +30,7 @@ final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {
 });
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
+  // Patient accounts authenticate against the Altrix API.
+  // Firebase is used for push notifications once configured, not for sign-in yet.
   return AuthRepositoryImpl(ref.watch(authRemoteDataSourceProvider));
 });

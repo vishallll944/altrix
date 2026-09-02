@@ -16,7 +16,9 @@ class UnauthorizedInterceptor extends Interceptor {
 
   bool _isPublicPath(String path) {
     return path.contains(ApiEndpoints.patientLogin) ||
-        path.contains(ApiEndpoints.patientInviteAccept);
+        path.contains(ApiEndpoints.patientInviteAccept) ||
+        path.contains(ApiEndpoints.patientInvitePreview) ||
+        path.contains('/api/telehealth/');
   }
 
   @override

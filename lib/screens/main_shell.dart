@@ -5,7 +5,9 @@ import '../core/responsive/responsive.dart';
 import '../theme/app_colors.dart';
 import '../widgets/exit_app_scope.dart';
 import 'home_screen.dart';
-import 'placeholder_screens.dart';
+import 'placeholder_screens.dart' show ProfileScreen;
+import 'schedule_screen.dart';
+import 'messages_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key, this.initialIndex = 0});
@@ -39,11 +41,6 @@ class _MainShellState extends State<MainShell> {
       selectedIcon: Icons.chat_bubble_rounded,
     ),
     _NavDestination(
-      label: 'Care',
-      icon: Icons.favorite_outline_rounded,
-      selectedIcon: Icons.favorite_rounded,
-    ),
-    _NavDestination(
       label: 'Me',
       icon: Icons.person_outline_rounded,
       selectedIcon: Icons.person_rounded,
@@ -66,7 +63,6 @@ class _MainShellState extends State<MainShell> {
       HomeScreen(onNavigateToTab: _onTabSelected),
       const ScheduleScreen(),
       const MessagesScreen(),
-      const CareScreen(),
       const ProfileScreen(),
     ];
 

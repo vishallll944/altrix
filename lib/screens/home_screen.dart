@@ -5,7 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/responsive/responsive.dart';
 import '../core/responsive/responsive_widgets.dart';
 import '../features/auth/presentation/providers/auth_provider.dart';
+import '../features/patient/data/utils/appointment_utils.dart';
+import '../features/patient/data/models/patient_models.dart';
+import '../features/patient/presentation/providers/patient_providers.dart';
 import '../theme/app_colors.dart';
+import '../widgets/appointment_actions.dart';
+import '../widgets/empty_state_card.dart';
 import '../widgets/app_buttons.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -19,6 +24,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int? _mood;
+  bool _isSavingCheckIn = false;
 
   String get _greeting {
     final hour = DateTime.now().hour;
@@ -45,10 +51,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
   }
 
+  Future<void> _saveCheckIn() async {
+    if (_mood == null || _isSavingCheckIn) return;
+    setState(() => _isSavingCheckIn = true);
+    try {
+      await ref.read(patientRepositoryProvider).createCheckIn(
+            mood: _mood! * 2,
+            stress: _mood! * 2,
+          );
+      if (!mounted) return;
+      _toast('Check-in saved');
+      ref.invalidate(progressProvider);
+      ref.invalidate(dashboardProvider);
+    } catch (error) {
+      if (!mounted) return;
+      _toast(friendlyErrorMessage(error));
+    } finally {
+      if (mounted) setState(() => _isSavingCheckIn = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final responsive = context.responsive;
     final userName = ref.watch(authProvider).user?.name.trim() ?? '';
+    final dashboardAsync = ref.watch(dashboardProvider);
+    final appointmentsAsync = ref.watch(appointmentsProvider);
+    final progressAsync = ref.watch(progressProvider);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
@@ -70,11 +99,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       greeting: _greeting,
                       userName: userName,
                       initials: _initials(userName),
+                      unreadNotifications: dashboardAsync.valueOrNull?.unreadNotifications ?? 0,
                     ),
                     SizedBox(height: responsive.rz(22)),
-                    _NextSessionCard(
-                      onJoin: () => _toast('Opening Zoom…'),
-                      onDirections: () => _toast('Opening directions…'),
+                    appointmentsAsync.when(
+                      loading: () => const InlineLoadingCard(
+                        label: 'Loading your next session...',
+                      ),
+                      error: (error, _) => InlineErrorCard(
+                        message: friendlyErrorMessage(error),
+                        onRetry: () => ref.invalidate(appointmentsProvider),
+                      ),
+                      data: (appointments) {
+                        final next = nextAppointment(appointments);
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (next != null)
+                              _NextSessionCard(
+                                appointment: next,
+                                onJoin: () => openAppointmentJoin(context, next),
+                                onDirections: () =>
+                                    openAppointmentDirections(context, next),
+                              )
+                            else
+                              const _EmptyNextSessionCard(),
+                          ],
+                        );
+                      },
                     ),
                     SizedBox(height: responsive.rz(26)),
                     _SectionHeader(
@@ -85,19 +137,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     _QuickActions(
                       onCheckIn: () => _toast('Daily check-in is below'),
                       onMessages: () => widget.onNavigateToTab?.call(2),
-                      onForms: () => widget.onNavigateToTab?.call(3),
-                      onResources: () => widget.onNavigateToTab?.call(3),
+                      onForms: () => _toast('Forms coming soon'),
+                      onResources: () => _toast('Resources coming soon'),
                     ),
                     SizedBox(height: responsive.rz(22)),
                     _CheckInCard(
                       selected: _mood,
                       onSelect: (value) => setState(() => _mood = value),
-                      onSave: _mood == null ? null : () => _toast('Check-in saved'),
+                      onSave: _mood == null || _isSavingCheckIn ? null : _saveCheckIn,
                     ),
                     SizedBox(height: responsive.rz(16)),
-                    const _CareTeamCard(),
+                    _DashboardSummaryCard(
+                      dashboardAsync: dashboardAsync,
+                      onOpenMessages: () => widget.onNavigateToTab?.call(2),
+                    ),
                     SizedBox(height: responsive.rz(16)),
-                    const _UpcomingCard(),
+                    _UpcomingCard(
+                      appointments: appointmentsAsync.maybeWhen(
+                        data: homeUpcomingAppointments,
+                        orElse: () => const <AppointmentModel>[],
+                      ),
+                      onViewAll: () => widget.onNavigateToTab?.call(1),
+                    ),
+                    SizedBox(height: responsive.rz(16)),
+                    _ProgressCard(progressAsync: progressAsync),
                   ],
                 ),
               ),
@@ -182,11 +245,13 @@ class _Header extends StatelessWidget {
     required this.greeting,
     required this.userName,
     required this.initials,
+    this.unreadNotifications = 0,
   });
 
   final String greeting;
   final String userName;
   final String initials;
+  final int unreadNotifications;
 
   @override
   Widget build(BuildContext context) {
@@ -200,7 +265,7 @@ class _Header extends StatelessWidget {
           children: [
             const Expanded(child: _TodayDateChip()),
             SizedBox(width: responsive.rz(10)),
-            _NotificationButton(),
+            _NotificationButton(unreadCount: unreadNotifications),
           ],
         ),
         SizedBox(height: responsive.rz(18)),
@@ -451,15 +516,15 @@ class _ProfileAvatar extends StatelessWidget {
 }
 
 class _NotificationButton extends StatelessWidget {
-  const _NotificationButton();
+  const _NotificationButton({this.unreadCount = 0});
 
-  static const _unreadCount = 2;
+  final int unreadCount;
 
   @override
   Widget build(BuildContext context) {
     final responsive = context.responsive;
     final size = responsive.rz(52);
-    final hasUnread = _unreadCount > 0;
+    final hasUnread = unreadCount > 0;
 
     return Material(
       color: Colors.transparent,
@@ -469,7 +534,7 @@ class _NotificationButton extends StatelessWidget {
             SnackBar(
               content: Text(
                 hasUnread
-                    ? '$_unreadCount new notifications'
+                    ? '$unreadCount new notifications'
                     : 'No new notifications',
               ),
               behavior: SnackBarBehavior.floating,
@@ -552,7 +617,7 @@ class _NotificationButton extends StatelessWidget {
                   top: responsive.rz(9),
                   child: Container(
                     padding: EdgeInsets.symmetric(
-                      horizontal: _unreadCount > 9
+                      horizontal: unreadCount > 9
                           ? responsive.rz(5)
                           : responsive.rz(0),
                     ),
@@ -565,10 +630,10 @@ class _NotificationButton extends StatelessWidget {
                       gradient: const LinearGradient(
                         colors: [Color(0xFFFF6B6B), AppColors.badge],
                       ),
-                      shape: _unreadCount > 9
+                      shape: unreadCount > 9
                           ? BoxShape.rectangle
                           : BoxShape.circle,
-                      borderRadius: _unreadCount > 9
+                      borderRadius: unreadCount > 9
                           ? BorderRadius.circular(10)
                           : null,
                       border: Border.all(color: AppColors.surface, width: 2),
@@ -581,7 +646,7 @@ class _NotificationButton extends StatelessWidget {
                       ],
                     ),
                     child: Text(
-                      _unreadCount > 9 ? '9+' : '$_unreadCount',
+                      unreadCount > 9 ? '9+' : '$unreadCount',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: responsive.rz(9),
@@ -600,12 +665,36 @@ class _NotificationButton extends StatelessWidget {
   }
 }
 
+class _EmptyNextSessionCard extends StatelessWidget {
+  const _EmptyNextSessionCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: const Text(
+        'No upcoming session scheduled.',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: AppColors.textSecondary),
+      ),
+    );
+  }
+}
+
 class _NextSessionCard extends StatelessWidget {
   const _NextSessionCard({
+    required this.appointment,
     required this.onJoin,
     required this.onDirections,
   });
 
+  final AppointmentModel appointment;
   final VoidCallback onJoin;
   final VoidCallback onDirections;
 
@@ -659,164 +748,194 @@ class _NextSessionCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.22),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: AppColors.primarySoft.withValues(alpha: 0.35),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final showGraphic = constraints.maxWidth > 340;
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.22),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: AppColors.primarySoft.withValues(alpha: 0.35),
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      _LiveDot(),
+                                      SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          'Next session',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFFD8D6F0),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    width: 7,
-                                    height: 7,
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFF5EC77A),
-                                      shape: BoxShape.circle,
-                                    ),
+                                SizedBox(height: responsive.rz(14)),
+                                Text(
+                                  appointment.displayWhen.isNotEmpty
+                                      ? appointment.displayWhen
+                                      : appointment.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: responsiveTextStyle(
+                                    context,
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                    letterSpacing: -0.5,
+                                    height: 1.1,
                                   ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Next session',
-                                    style: responsiveTextStyle(
-                                      context,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: const Color(0xFFD8D6F0),
-                                    ),
+                                ),
+                                SizedBox(height: responsive.rz(6)),
+                                Text(
+                                  appointment.providerName.isNotEmpty
+                                      ? appointment.providerName
+                                      : 'Your care team',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: responsiveTextStyle(
+                                    context,
+                                    fontSize: 15,
+                                    color: const Color(0xFFD8D6F0),
+                                    fontWeight: FontWeight.w500,
                                   ),
-                                ],
-                              ),
+                                ),
+                                SizedBox(height: responsive.rz(12)),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.videocam_rounded,
+                                        size: 16,
+                                        color: Color(0xFFC4C0EA),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          '${appointment.visitType}  ·  ${appointment.duration}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: responsiveTextStyle(
+                                            context,
+                                            fontSize: 13,
+                                            color: const Color(0xFFC4C0EA),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
-                            SizedBox(height: responsive.rz(14)),
-                            Text(
-                              'Today, 2:00 PM',
-                              style: responsiveTextStyle(
-                                context,
-                                fontSize: 26,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                letterSpacing: -0.5,
-                                height: 1.1,
-                              ),
-                            ),
-                            SizedBox(height: responsive.rz(6)),
-                            Text(
-                              'Maya Patel, LCSW-C',
-                              style: responsiveTextStyle(
-                                context,
-                                fontSize: 15,
-                                color: const Color(0xFFD8D6F0),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            SizedBox(height: responsive.rz(12)),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.videocam_rounded,
-                                    size: 16,
-                                    color: Color(0xFFC4C0EA),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Video visit  ·  50 min',
-                                    style: responsiveTextStyle(
-                                      context,
-                                      fontSize: 13,
-                                      color: const Color(0xFFC4C0EA),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                          ),
+                          if (showGraphic) const _CalendarGraphic(),
+                        ],
+                      );
+                    },
+                  ),
+                  SizedBox(height: responsive.rz(18)),
+                  if (appointment.isVirtual && appointment.hasJoinLink)
+                    SizedBox(
+                      width: double.infinity,
+                      height: responsive.rz(50),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(28),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF8B83F6), AppColors.primary],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.45),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
                             ),
                           ],
                         ),
-                      ),
-                      const _CalendarGraphic(),
-                    ],
-                  ),
-                  SizedBox(height: responsive.rz(18)),
-                  SizedBox(
-                    width: double.infinity,
-                    height: responsive.rz(50),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(28),
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF8B83F6), AppColors.primary],
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.45),
-                            blurRadius: 16,
-                            offset: const Offset(0, 6),
+                        child: FilledButton.icon(
+                          onPressed: onJoin,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            foregroundColor: Colors.white,
+                            shape: const StadiumBorder(),
+                            textStyle: TextStyle(
+                              fontSize: responsive.rz(16),
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ],
-                      ),
-                      child: FilledButton.icon(
-                        onPressed: onJoin,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          foregroundColor: Colors.white,
-                          shape: const StadiumBorder(),
-                          textStyle: TextStyle(
-                            fontSize: responsive.rz(16),
-                            fontWeight: FontWeight.w700,
-                          ),
+                          icon: const Icon(Icons.videocam_rounded, size: 21),
+                          label: const Text('Join Zoom'),
                         ),
-                        icon: const Icon(Icons.videocam_rounded, size: 21),
-                        label: const Text('Join Zoom'),
                       ),
                     ),
-                  ),
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: onDirections,
-                      icon: const Icon(
-                        Icons.near_me_rounded,
-                        size: 16,
-                        color: Color(0xFFB7B3E8),
-                      ),
-                      label: const Text(
-                        'Get directions',
-                        style: TextStyle(
+                  if (!appointment.isVirtual && appointment.location.isNotEmpty)
+                    Center(
+                      child: TextButton.icon(
+                        onPressed: onDirections,
+                        icon: const Icon(
+                          Icons.near_me_rounded,
+                          size: 16,
                           color: Color(0xFFB7B3E8),
-                          fontWeight: FontWeight.w600,
+                        ),
+                        label: const Text(
+                          'Get directions',
+                          style: TextStyle(
+                            color: Color(0xFFB7B3E8),
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _LiveDot extends StatelessWidget {
+  const _LiveDot();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 7,
+      height: 7,
+      decoration: const BoxDecoration(
+        color: Color(0xFF5EC77A),
+        shape: BoxShape.circle,
       ),
     );
   }
@@ -1307,110 +1426,430 @@ class _MoodPainter extends CustomPainter {
       oldDelegate.level != level;
 }
 
-class _CareTeamCard extends StatelessWidget {
-  const _CareTeamCard();
+class _DashboardSummaryCard extends StatelessWidget {
+  const _DashboardSummaryCard({
+    required this.dashboardAsync,
+    this.onOpenMessages,
+  });
+
+  final AsyncValue<DashboardModel> dashboardAsync;
+  final VoidCallback? onOpenMessages;
 
   @override
   Widget build(BuildContext context) {
     final responsive = context.responsive;
 
     return _SurfaceCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _SectionHeader(
-            title: 'From your care team',
-            subtitle: 'Updates and reminders',
-          ),
-          SizedBox(height: responsive.rz(14)),
-          Material(
-            color: AppColors.primaryWash.withValues(alpha: 0.55),
-            borderRadius: BorderRadius.circular(16),
-            child: InkWell(
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Opening PHQ-9 reminder'),
-                    behavior: SnackBarBehavior.floating,
+      child: dashboardAsync.when(
+        loading: () => const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SectionHeader(
+              title: 'Your dashboard',
+              subtitle: 'Wellness overview from your care team',
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Loading dashboard...',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ],
+        ),
+        error: (error, _) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _SectionHeader(
+              title: 'Your dashboard',
+              subtitle: 'Wellness overview from your care team',
+            ),
+            SizedBox(height: responsive.rz(12)),
+            InlineErrorCard(
+              message: friendlyErrorMessage(error),
+            ),
+          ],
+        ),
+        data: (dashboard) {
+          final updates = [
+            ...dashboard.pendingTasks,
+            ...dashboard.reminders,
+            ...dashboard.notifications,
+          ];
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const _SectionHeader(
+                title: 'Your dashboard',
+                subtitle: 'Wellness overview from your care team',
+              ),
+              SizedBox(height: responsive.rz(14)),
+              Wrap(
+                spacing: responsive.rz(10),
+                runSpacing: responsive.rz(10),
+                children: [
+                  _DashboardStatChip(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    label: 'Messages',
+                    value: '${dashboard.unreadMessages}',
+                    onTap: onOpenMessages,
                   ),
-                );
-              },
-              borderRadius: BorderRadius.circular(16),
-              child: Padding(
-                padding: EdgeInsets.all(responsive.rz(14)),
-                child: Row(
+                  _DashboardStatChip(
+                    icon: Icons.task_alt_rounded,
+                    label: 'Tasks',
+                    value: '${dashboard.pendingTasks.length}',
+                  ),
+                  _DashboardStatChip(
+                    icon: Icons.check_circle_outline_rounded,
+                    label: 'Check-ins',
+                    value: '${dashboard.weeklyCheckInsCompleted}',
+                  ),
+                  _DashboardStatChip(
+                    icon: Icons.local_fire_department_rounded,
+                    label: 'Streak',
+                    value: '${dashboard.checkInStreak}',
+                  ),
+                ],
+              ),
+              SizedBox(height: responsive.rz(16)),
+              _DashboardStatusRow(
+                icon: dashboard.todayCheckInCompleted
+                    ? Icons.check_circle_rounded
+                    : Icons.radio_button_unchecked_rounded,
+                iconColor: dashboard.todayCheckInCompleted
+                    ? AppColors.mood5
+                    : AppColors.textSecondary,
+                title: dashboard.todayCheckInCompleted
+                    ? "Today's check-in complete"
+                    : "Today's check-in not done yet",
+                subtitle: _formatWellnessLine(
+                  mood: dashboard.todayMood,
+                  stress: dashboard.todayStress,
+                  sleep: dashboard.todaySleep,
+                  fallback: dashboard.todayCheckInCompleted
+                      ? 'Thanks for checking in today.'
+                      : 'Use the check-in card above when you are ready.',
+                ),
+              ),
+              if (dashboard.latestMood != null ||
+                  dashboard.latestStress != null ||
+                  dashboard.latestSleep != null) ...[
+                SizedBox(height: responsive.rz(10)),
+                _DashboardStatusRow(
+                  icon: Icons.insights_rounded,
+                  iconColor: AppColors.primary,
+                  title: 'Latest scores',
+                  subtitle: _formatWellnessLine(
+                    mood: dashboard.latestMood,
+                    stress: dashboard.latestStress,
+                    sleep: dashboard.latestSleep,
+                  ),
+                ),
+              ],
+              if (dashboard.weeklyAverageMood != null ||
+                  dashboard.weeklyAverageStress != null ||
+                  dashboard.weeklyAverageSleep != null) ...[
+                SizedBox(height: responsive.rz(14)),
+                Text(
+                  'This week',
+                  style: responsiveTextStyle(
+                    context,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                SizedBox(height: responsive.rz(10)),
+                Row(
                   children: [
-                    Container(
-                      width: responsive.rz(44),
-                      height: responsive.rz(44),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF9B93F8), AppColors.primary],
-                        ),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(
-                        Icons.chat_bubble_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                    SizedBox(width: responsive.rz(12)),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: const BoxDecoration(
-                                  color: AppColors.primary,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'New reminder',
-                                style: responsiveTextStyle(
-                                  context,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                              const Spacer(),
-                              Text(
-                                '1h ago',
-                                style: responsiveTextStyle(
-                                  context,
-                                  fontSize: 11,
-                                  color: AppColors.textTertiary,
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: responsive.rz(4)),
-                          Text(
-                            'Complete PHQ-9 before Friday',
-                            style: responsiveTextStyle(
-                              context,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ],
+                      child: _WellnessMetricTile(
+                        label: 'Mood',
+                        value: _formatScore(dashboard.weeklyAverageMood),
                       ),
                     ),
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      color: AppColors.textTertiary,
+                    SizedBox(width: responsive.rz(8)),
+                    Expanded(
+                      child: _WellnessMetricTile(
+                        label: 'Stress',
+                        value: _formatScore(dashboard.weeklyAverageStress),
+                      ),
+                    ),
+                    SizedBox(width: responsive.rz(8)),
+                    Expanded(
+                      child: _WellnessMetricTile(
+                        label: 'Sleep',
+                        value: _formatScore(dashboard.weeklyAverageSleep),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              if (dashboard.recommendedWellnessTool.isNotEmpty) ...[
+                SizedBox(height: responsive.rz(14)),
+                _DashboardStatusRow(
+                  icon: Icons.spa_rounded,
+                  iconColor: AppColors.primary,
+                  title: 'Recommended for you',
+                  subtitle: _titleCase(dashboard.recommendedWellnessTool),
+                ),
+              ],
+              if (dashboard.safetyPlanAvailable) ...[
+                SizedBox(height: responsive.rz(10)),
+                _DashboardStatusRow(
+                  icon: Icons.shield_outlined,
+                  iconColor: dashboard.safetyPlanSigned
+                      ? AppColors.mood5
+                      : AppColors.mood3,
+                  title: 'Safety plan',
+                  subtitle: dashboard.safetyPlanSigned
+                      ? 'Signed and on file'
+                      : 'Available — review with your care team',
+                ),
+              ],
+              if (updates.isNotEmpty) ...[
+                SizedBox(height: responsive.rz(16)),
+                Text(
+                  'Updates & tasks',
+                  style: responsiveTextStyle(
+                    context,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                SizedBox(height: responsive.rz(10)),
+                for (final item in updates.take(3))
+                  Padding(
+                    padding: EdgeInsets.only(bottom: responsive.rz(10)),
+                    child: _DashboardUpdateTile(item: item),
+                  ),
+              ] else ...[
+                SizedBox(height: responsive.rz(14)),
+                Text(
+                  'No pending tasks or notifications right now.',
+                  style: responsiveTextStyle(
+                    context,
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _DashboardStatChip extends StatelessWidget {
+  const _DashboardStatChip({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final responsive = context.responsive;
+
+    return Material(
+      color: AppColors.background,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          width: responsive.rz(150),
+          padding: EdgeInsets.symmetric(
+            horizontal: responsive.rz(12),
+            vertical: responsive.rz(12),
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: responsive.rz(18), color: AppColors.primary),
+              SizedBox(width: responsive.rz(8)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      value,
+                      style: responsiveTextStyle(
+                        context,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      label,
+                      style: responsiveTextStyle(
+                        context,
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashboardStatusRow extends StatelessWidget {
+  const _DashboardStatusRow({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final responsive = context.responsive;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: responsive.rz(20), color: iconColor),
+        SizedBox(width: responsive.rz(10)),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: responsiveTextStyle(
+                  context,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              if (subtitle.isNotEmpty) ...[
+                SizedBox(height: responsive.rz(2)),
+                Text(
+                  subtitle,
+                  style: responsiveTextStyle(
+                    context,
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DashboardUpdateTile extends StatelessWidget {
+  const _DashboardUpdateTile({required this.item});
+
+  final DashboardItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final responsive = context.responsive;
+
+    return Container(
+      padding: EdgeInsets.all(responsive.rz(14)),
+      decoration: BoxDecoration(
+        color: AppColors.primaryWash.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            item.displayText,
+            style: responsiveTextStyle(
+              context,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          if (item.time.isNotEmpty) ...[
+            SizedBox(height: responsive.rz(4)),
+            Text(
+              item.time,
+              style: responsiveTextStyle(
+                context,
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _WellnessMetricTile extends StatelessWidget {
+  const _WellnessMetricTile({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final responsive = context.responsive;
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: responsive.rz(10),
+        vertical: responsive.rz(12),
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: responsiveTextStyle(
+              context,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primary,
+            ),
+          ),
+          SizedBox(height: responsive.rz(2)),
+          Text(
+            label,
+            style: responsiveTextStyle(
+              context,
+              fontSize: 12,
+              color: AppColors.textSecondary,
             ),
           ),
         ],
@@ -1419,8 +1858,56 @@ class _CareTeamCard extends StatelessWidget {
   }
 }
 
+String _formatScore(double? value) {
+  if (value == null) return '—';
+  if (value == value.roundToDouble()) return value.round().toString();
+  return value.toStringAsFixed(1);
+}
+
+String _formatWellnessLine({
+  double? mood,
+  double? stress,
+  double? sleep,
+  String fallback = '',
+}) {
+  final parts = <String>[];
+  if (mood != null) parts.add('Mood ${_formatScore(mood)}');
+  if (stress != null) parts.add('Stress ${_formatScore(stress)}');
+  if (sleep != null) parts.add('Sleep ${_formatScore(sleep)}');
+  if (parts.isEmpty) return fallback;
+  return parts.join(' · ');
+}
+
+String _titleCase(String value) {
+  if (value.isEmpty) return value;
+  return value
+      .split(RegExp(r'[\s_-]+'))
+      .where((part) => part.isNotEmpty)
+      .map((part) => part[0].toUpperCase() + part.substring(1).toLowerCase())
+      .join(' ');
+}
+
+Color _riskLevelColor(String riskLevel) {
+  switch (riskLevel.toLowerCase()) {
+    case 'high':
+      return AppColors.badge;
+    case 'medium':
+    case 'moderate':
+      return AppColors.mood3;
+    case 'low':
+    default:
+      return AppColors.mood5;
+  }
+}
+
 class _UpcomingCard extends StatelessWidget {
-  const _UpcomingCard();
+  const _UpcomingCard({
+    required this.appointments,
+    this.onViewAll,
+  });
+
+  final List<AppointmentModel> appointments;
+  final VoidCallback? onViewAll;
 
   @override
   Widget build(BuildContext context) {
@@ -1430,41 +1917,305 @@ class _UpcomingCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(
+          const _SectionHeader(
             title: 'Upcoming',
-            subtitle: 'Your scheduled visits',
+            subtitle: 'More scheduled visits',
           ),
           SizedBox(height: responsive.rz(16)),
-          const _UpcomingRow(
-            month: 'MAY',
-            day: '15',
-            weekday: 'THU',
-            title: 'Thu, May 15',
-            subtitle: '10:00 AM  ·  In-person',
-            trailingIcon: Icons.location_on_rounded,
-            accentColor: Color(0xFF3B82F6),
-            isLast: false,
-          ),
-          Padding(
-            padding: EdgeInsets.only(left: responsive.rz(21)),
-            child: Container(
-              width: 2,
-              height: responsive.rz(16),
-              color: AppColors.border,
+          if (appointments.isEmpty)
+            Text(
+              'No more upcoming visits on home.',
+              style: responsiveTextStyle(
+                context,
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+            )
+          else
+            for (final appointment in appointments)
+              Padding(
+                padding: EdgeInsets.only(bottom: responsive.rz(10)),
+                child: _UpcomingAppointmentRow(appointment: appointment),
+              ),
+          if (onViewAll != null) ...[
+            SizedBox(height: responsive.rz(8)),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: onViewAll,
+                child: const Text('View all in Schedule'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _UpcomingAppointmentRow extends StatelessWidget {
+  const _UpcomingAppointmentRow({required this.appointment});
+
+  final AppointmentModel appointment;
+
+  @override
+  Widget build(BuildContext context) {
+    final responsive = context.responsive;
+
+    return Container(
+      padding: EdgeInsets.all(responsive.rz(12)),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: responsive.rz(42),
+            height: responsive.rz(42),
+            decoration: BoxDecoration(
+              color: AppColors.primaryMuted,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              appointment.isVirtual
+                  ? Icons.videocam_rounded
+                  : Icons.location_on_rounded,
+              color: AppColors.primary,
+              size: responsive.rz(20),
             ),
           ),
-          const _UpcomingRow(
-            month: 'MAY',
-            day: '20',
-            weekday: 'TUE',
-            title: 'Tue, May 20',
-            subtitle: '2:00 PM  ·  Telehealth',
-            trailingIcon: Icons.videocam_rounded,
-            accentColor: AppColors.primary,
-            isLast: true,
+          SizedBox(width: responsive.rz(12)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  appointment.displayWhen.isNotEmpty
+                      ? appointment.displayWhen
+                      : appointment.title,
+                  style: responsiveTextStyle(
+                    context,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                SizedBox(height: responsive.rz(2)),
+                Text(
+                  appointment.subtitleLine,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: responsiveTextStyle(
+                    context,
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ProgressCard extends StatelessWidget {
+  const _ProgressCard({required this.progressAsync});
+
+  final AsyncValue<ProgressModel> progressAsync;
+
+  @override
+  Widget build(BuildContext context) {
+    final responsive = context.responsive;
+
+    return _SurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionHeader(
+            title: 'Your progress',
+            subtitle: 'Weekly wellness trends',
+          ),
+          SizedBox(height: responsive.rz(14)),
+          progressAsync.when(
+            loading: () => const Text(
+              'Loading progress...',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+            error: (error, _) => InlineErrorCard(
+              message: friendlyErrorMessage(error),
+            ),
+            data: (progress) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${progress.streak ?? 0}',
+                              style: responsiveTextStyle(
+                                context,
+                                fontSize: 28,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            Text(
+                              'day streak',
+                              style: responsiveTextStyle(
+                                context,
+                                fontSize: 13,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (progress.riskLevel.isNotEmpty)
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: responsive.rz(12),
+                            vertical: responsive.rz(8),
+                          ),
+                          decoration: BoxDecoration(
+                            color: _riskLevelColor(progress.riskLevel)
+                                .withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '${_titleCase(progress.riskLevel)} risk',
+                            style: responsiveTextStyle(
+                              context,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: _riskLevelColor(progress.riskLevel),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  SizedBox(height: responsive.rz(16)),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _WellnessMetricTile(
+                          label: 'Mood',
+                          value: _formatScore(progress.averageMood),
+                        ),
+                      ),
+                      SizedBox(width: responsive.rz(8)),
+                      Expanded(
+                        child: _WellnessMetricTile(
+                          label: 'Stress',
+                          value: _formatScore(progress.averageStress),
+                        ),
+                      ),
+                      SizedBox(width: responsive.rz(8)),
+                      Expanded(
+                        child: _WellnessMetricTile(
+                          label: 'Sleep',
+                          value: _formatScore(progress.averageSleep),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: responsive.rz(12)),
+                  Text(
+                    '${progress.checkInsCount ?? 0} check-ins completed this week',
+                    style: responsiveTextStyle(
+                      context,
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  if (progress.displaySummary.isNotEmpty) ...[
+                    SizedBox(height: responsive.rz(8)),
+                    Text(
+                      progress.displaySummary,
+                      style: responsiveTextStyle(
+                        context,
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                  if (progress.moodTrend.isNotEmpty) ...[
+                    SizedBox(height: responsive.rz(14)),
+                    Text(
+                      'Daily mood',
+                      style: responsiveTextStyle(
+                        context,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    SizedBox(height: responsive.rz(10)),
+                    SizedBox(
+                      height: responsive.rz(72),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          for (final mood in progress.moodTrend)
+                            Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: responsive.rz(2),
+                                ),
+                                child: _MoodTrendBar(value: mood),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MoodTrendBar extends StatelessWidget {
+  const _MoodTrendBar({required this.value});
+
+  final int value;
+
+  @override
+  Widget build(BuildContext context) {
+    final responsive = context.responsive;
+    final normalized = (value.clamp(0, 10) / 10).clamp(0.15, 1.0);
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        Container(
+          height: responsive.rz(56) * normalized,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.75),
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        SizedBox(height: responsive.rz(4)),
+        Text(
+          '$value',
+          style: responsiveTextStyle(
+            context,
+            fontSize: 10,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
     );
   }
 }

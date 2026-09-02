@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../domain/entities/user.dart';
+import '../../../notifications/presentation/providers/push_notification_provider.dart';
 import 'auth_providers.dart';
 import 'auth_token_provider.dart';
 
@@ -108,9 +109,8 @@ class AuthNotifier extends Notifier<AuthState> {
           );
       await _saveSession(result.token);
       sessionSaved = true;
-
-      final profile = await ref.read(authRepositoryProvider).getProfile();
-      state = AuthState(user: profile, isRestoringSession: false);
+      state = AuthState(user: result.user, isRestoringSession: false);
+      await ref.read(pushNotificationServiceProvider).syncTokenForCurrentUser();
       return true;
     } on ApiException catch (error) {
       if (sessionSaved) {

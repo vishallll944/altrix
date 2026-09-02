@@ -1,4 +1,5 @@
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/network/api_response.dart';
 import 'client_model.dart';
 
 class LoginResponse {
@@ -12,14 +13,14 @@ class LoginResponse {
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
     if (json['success'] != true) {
-      throw ApiException(
-        json['error'] as String? ?? 'Login failed',
-      );
+      throw ApiException(apiErrorMessage(json) ?? 'Login failed');
     }
 
+    final payload = unwrapApiPayload(json);
+
     return LoginResponse(
-      token: json['token'] as String,
-      client: ClientModel.fromJson(json['client'] as Map<String, dynamic>),
+      token: payload['token'] as String,
+      client: ClientModel.fromJson(clientJsonFromPayload(payload)),
     );
   }
 }

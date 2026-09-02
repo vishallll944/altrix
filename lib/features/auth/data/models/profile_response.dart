@@ -1,4 +1,5 @@
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/network/api_response.dart';
 import 'client_model.dart';
 
 class ProfileResponse {
@@ -8,13 +9,13 @@ class ProfileResponse {
 
   factory ProfileResponse.fromJson(Map<String, dynamic> json) {
     if (json['success'] != true) {
-      throw ApiException(
-        json['error'] as String? ?? 'Could not load profile',
-      );
+      throw ApiException(apiErrorMessage(json) ?? 'Could not load profile');
     }
 
+    final payload = unwrapApiPayload(json);
+
     return ProfileResponse(
-      client: ClientModel.fromJson(json['client'] as Map<String, dynamic>),
+      client: ClientModel.fromJson(clientJsonFromPayload(payload)),
     );
   }
 }

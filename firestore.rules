@@ -1,0 +1,66 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: users/{userId}
+//   - email: string
+//   - name: string
+//   - phone: string
+//   - createdAt: timestamp
+//   - updatedAt: timestamp
+//
+// Subcollection: users/{userId}/deviceTokens/{tokenId}
+//   - token: string
+//   - platform: string
+//   - updatedAt: timestamp
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidUserProfile() {
+      let data = request.resource.data;
+      return data.keys().hasOnly(['email', 'name', 'phone', 'createdAt', 'updatedAt'])
+        && data.email is string
+        && data.email.size() > 0
+        && data.email.size() <= 320
+        && data.name is string
+        && data.name.size() <= 120
+        && data.phone is string
+        && data.phone.size() <= 32
+        && (!('createdAt' in data) || data.createdAt is timestamp)
+        && (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidDeviceToken() {
+      let data = request.resource.data;
+      return data.keys().hasOnly(['token', 'platform', 'updatedAt'])
+        && data.token is string
+        && data.token.size() > 0
+        && data.token.size() <= 4096
+        && data.platform is string
+        && data.platform.size() <= 32
+        && (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUserProfile();
+      allow update: if isOwner(userId) && isValidUserProfile();
+
+      match /deviceTokens/{tokenId} {
+        allow read, write: if isOwner(userId) && isValidDeviceToken();
+      }
+    }
+  }
+}

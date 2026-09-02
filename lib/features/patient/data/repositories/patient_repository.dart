@@ -1,0 +1,128 @@
+import '../models/patient_models.dart';
+import '../datasources/patient_remote_datasource.dart';
+
+class PatientRepository {
+  const PatientRepository(this._remote);
+
+  final PatientRemoteDataSource _remote;
+
+  Future<InvitePreviewModel> previewInvite(String token) => _remote.previewInvite(token);
+
+  Future<DashboardModel> getDashboard() => _remote.getDashboard();
+
+  Future<List<AppointmentModel>> getAppointments() => _remote.getAppointments();
+
+  Future<AppointmentModel> getAppointment(String id) => _remote.getAppointment(id);
+
+  Future<AppointmentModel> bookAppointment({
+    required String clinicianId,
+    required String type,
+    required String date,
+    required String startTime,
+    String? endTime,
+    required bool isVirtual,
+  }) =>
+      _remote.bookAppointment(
+        clinicianId: clinicianId,
+        type: type,
+        date: date,
+        startTime: startTime,
+        endTime: endTime,
+        isVirtual: isVirtual,
+      );
+
+  Future<AppointmentModel> cancelAppointment(String id) => _remote.cancelAppointment(id);
+
+  Future<AppointmentModel> rescheduleAppointment({
+    required String id,
+    required String date,
+    required String startTime,
+    String? endTime,
+    String? note,
+  }) =>
+      _remote.rescheduleAppointment(
+        id: id,
+        date: date,
+        startTime: startTime,
+        endTime: endTime,
+        note: note,
+      );
+
+  Future<List<DoctorModel>> getDoctors() => _remote.getDoctors();
+
+  Future<List<AvailabilitySlotModel>> getDoctorAvailability({
+    required String doctorId,
+    String? from,
+    int? days,
+  }) =>
+      _remote.getDoctorAvailability(doctorId: doctorId, from: from, days: days);
+
+  Future<List<ConversationModel>> getConversations() => _remote.getConversations();
+
+  Future<ConversationModel> createConversation({
+    required String topic,
+    required String message,
+  }) =>
+      _remote.createConversation(topic: topic, message: message);
+
+  Future<List<MessageModel>> getConversationMessages({
+    required String conversationId,
+    int page = 1,
+    int limit = 20,
+  }) =>
+      _remote.getConversationMessages(
+        conversationId: conversationId,
+        page: page,
+        limit: limit,
+      );
+
+  Future<MessageModel> sendMessage({
+    required String conversationId,
+    required String message,
+  }) =>
+      _remote.sendMessage(conversationId: conversationId, message: message);
+
+  Future<void> markMessageRead(String messageId) => _remote.markMessageRead(messageId);
+
+  Future<List<CheckInModel>> getCheckIns({
+    int page = 1,
+    int limit = 20,
+    String? from,
+    String? to,
+  }) =>
+      _remote.getCheckIns(page: page, limit: limit, from: from, to: to);
+
+  Future<CheckInModel> createCheckIn({
+    required int mood,
+    required int stress,
+    int? sleep,
+    String? journal,
+  }) =>
+      _remote.createCheckIn(
+        mood: mood,
+        stress: stress,
+        sleep: sleep,
+        journal: journal,
+      );
+
+  Future<ProgressModel> getProgress() => _remote.getProgress();
+
+  Future<TelehealthSessionModel> getTelehealthSession(String joinToken) =>
+      _remote.getTelehealthSession(joinToken);
+
+  Future<Map<String, dynamic>> markTelehealthHere(String joinToken) =>
+      _remote.markTelehealthHere(joinToken);
+
+  Future<Map<String, dynamic>> pollTelehealthSignal({
+    required String joinToken,
+    int after = 0,
+  }) =>
+      _remote.pollTelehealthSignal(joinToken: joinToken, after: after);
+
+  Future<Map<String, dynamic>> sendTelehealthSignal({
+    required String joinToken,
+    required String type,
+    Map<String, dynamic>? data,
+  }) =>
+      _remote.sendTelehealthSignal(joinToken: joinToken, type: type, data: data);
+}

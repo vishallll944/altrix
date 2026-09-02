@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../widgets/app_buttons.dart';
 import '../../../../widgets/app_text_field.dart';
+import '../../../patient/presentation/providers/patient_providers.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/auth_layout.dart';
 import 'sign_in_screen.dart';
@@ -65,6 +66,7 @@ class _InviteAcceptScreenState extends ConsumerState<InviteAcceptScreen> {
   @override
   Widget build(BuildContext context) {
     final isLoading = ref.watch(authProvider).isLoading;
+    final previewAsync = ref.watch(invitePreviewProvider(widget.inviteToken));
 
     return AuthLayout(
       compactHeader: true,
@@ -83,13 +85,51 @@ class _InviteAcceptScreenState extends ConsumerState<InviteAcceptScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Create a password to finish setting up your account.',
-              style: TextStyle(
-                fontSize: 15,
-                color: AppColors.textSecondary,
-                height: 1.4,
+            previewAsync.when(
+              loading: () => const Text(
+                'Checking your invite link...',
+                style: TextStyle(color: AppColors.textSecondary),
               ),
+              error: (_, __) => const Text(
+                'This invite link could not be verified. You can still try setting a password.',
+                style: TextStyle(color: AppColors.textSecondary, height: 1.4),
+              ),
+              data: (preview) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      preview.valid
+                          ? 'Create a password to finish setting up your account.'
+                          : preview.message.isNotEmpty
+                              ? preview.message
+                              : 'This invite link is not valid.',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        color: AppColors.textSecondary,
+                        height: 1.4,
+                      ),
+                    ),
+                    if (preview.email.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        preview.email,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                    if (preview.clinicName.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        preview.clinicName,
+                        style: const TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 24),
             PasswordField(
@@ -100,8 +140,15 @@ class _InviteAcceptScreenState extends ConsumerState<InviteAcceptScreen> {
                 if (value == null || value.isEmpty) {
                   return 'Enter a password';
                 }
-                if (value.length < 8) {
-                  return 'Password must be at least 8 characters';
+                if (value.length < 8 || value.length > 72) {
+                  return 'Password must be 8-72 characters';
+                }
+                if (value.contains(' ')) {
+                  return 'Password cannot contain spaces';
+                }
+                if (!RegExp(r'[A-Za-z]').hasMatch(value) ||
+                    !RegExp(r'[0-9]').hasMatch(value)) {
+                  return 'Use at least 1 letter and 1 number';
                 }
                 return null;
               },
