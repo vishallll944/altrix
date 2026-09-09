@@ -8,6 +8,7 @@ import '../features/auth/presentation/providers/auth_provider.dart';
 import '../features/patient/data/utils/appointment_utils.dart';
 import '../features/patient/data/models/patient_models.dart';
 import '../features/patient/presentation/providers/patient_providers.dart';
+import '../features/patient/presentation/screens/forms_screen.dart';
 import '../theme/app_colors.dart';
 import '../widgets/appointment_actions.dart';
 import '../widgets/empty_state_card.dart';
@@ -137,7 +138,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     _QuickActions(
                       onCheckIn: () => _toast('Daily check-in is below'),
                       onMessages: () => widget.onNavigateToTab?.call(2),
-                      onForms: () => _toast('Forms coming soon'),
+                      onForms: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const FormsScreen()),
+                        );
+                      },
                       onResources: () => _toast('Resources coming soon'),
                     ),
                     SizedBox(height: responsive.rz(22)),
@@ -298,7 +303,7 @@ class _Header extends StatelessWidget {
                       SizedBox(width: responsive.rz(4)),
                       Flexible(
                         child: Text(
-                          'Divine Counseling  ·  Maryland',
+                          'Altrixs  ·  Maryland',
                           style: responsiveTextStyle(
                             context,
                             fontSize: 14,
@@ -2216,129 +2221,6 @@ class _MoodTrendBar extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _UpcomingRow extends StatelessWidget {
-  const _UpcomingRow({
-    required this.month,
-    required this.day,
-    required this.weekday,
-    required this.title,
-    required this.subtitle,
-    required this.trailingIcon,
-    required this.accentColor,
-    required this.isLast,
-  });
-
-  final String month;
-  final String day;
-  final String weekday;
-  final String title;
-  final String subtitle;
-  final IconData trailingIcon;
-  final Color accentColor;
-  final bool isLast;
-
-  @override
-  Widget build(BuildContext context) {
-    final responsive = context.responsive;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {},
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: EdgeInsets.symmetric(vertical: responsive.rz(6)),
-          child: Row(
-            children: [
-              Container(
-                width: responsive.rz(52),
-                padding: EdgeInsets.symmetric(vertical: responsive.rz(8)),
-                decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: accentColor.withValues(alpha: 0.18),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      month,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: accentColor,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    Text(
-                      day,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                        height: 1,
-                      ),
-                    ),
-                    Text(
-                      weekday,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: accentColor,
-                        letterSpacing: 0.4,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(width: responsive.rz(14)),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: responsiveTextStyle(
-                        context,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    SizedBox(height: responsive.rz(3)),
-                    Text(
-                      subtitle,
-                      style: responsiveTextStyle(
-                        context,
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                width: responsive.rz(38),
-                height: responsive.rz(38),
-                decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(trailingIcon, size: 18, color: accentColor),
-              ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.textTertiary,
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

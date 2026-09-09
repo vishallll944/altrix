@@ -5,6 +5,8 @@ class ApiEndpoints {
   static const patientLogin = '/api/patient/login';
   static const patientInvitePreview = '/api/patient/invite/preview';
   static const patientInviteAccept = '/api/patient/invite/accept';
+  static const patientForgotPassword = '/api/patient/forgot-password';
+  static const patientResetPassword = '/api/patient/reset-password';
 
   // Profile & home
   static const patientMe = '/api/patient/me';
@@ -33,6 +35,10 @@ class ApiEndpoints {
   // Check-ins & progress
   static const patientCheckIns = '/api/patient/check-ins';
   static const patientProgress = '/api/patient/progress';
+
+  // Forms & consents
+  static const patientForms = '/api/patient/forms';
+  static String patientForm(String id) => '/api/patient/forms/$id';
 
   // Telehealth (join token auth)
   static String telehealthJoin(String joinToken) => '/api/telehealth/join/$joinToken';

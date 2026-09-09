@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/api_exception.dart';
@@ -88,38 +89,36 @@ class AuthNotifier extends Notifier<AuthState> {
 
   void _resetSignInAttempt({String? error}) {
     ref.read(authTokenProvider.notifier).state = null;
-    state = state.copyWith(
-      isLoading: false,
-      error: error,
-      clearUser: true,
-    );
+    state = state.copyWith(isLoading: false, error: error, clearUser: true);
   }
 
-  Future<bool> signIn({
-    required String email,
-    required String password,
-  }) async {
+  Future<bool> signIn({required String email, required String password}) async {
     state = state.copyWith(isLoading: true, clearError: true);
     var sessionSaved = false;
 
     try {
-      final result = await ref.read(authRepositoryProvider).signIn(
-            email: email,
-            password: password,
-          );
+      final result = await ref
+          .read(authRepositoryProvider)
+          .signIn(email: email, password: password);
       await _saveSession(result.token);
       sessionSaved = true;
       state = AuthState(user: result.user, isRestoringSession: false);
       await ref.read(pushNotificationServiceProvider).syncTokenForCurrentUser();
       return true;
-    } on ApiException catch (error) {
+    } on ApiException catch (error, stackTrace) {
+      debugPrint(
+        '[Auth] Sign-in ApiException: ${error.message} (status: ${error.statusCode})',
+      );
+      debugPrint('$stackTrace');
       if (sessionSaved) {
         await _clearSession();
       } else {
         _resetSignInAttempt(error: error.message);
       }
       return false;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('[Auth] Sign-in error: $error');
+      debugPrint('$stackTrace');
       if (sessionSaved) {
         await _clearSession();
         state = state.copyWith(
@@ -128,9 +127,7 @@ class AuthNotifier extends Notifier<AuthState> {
           error: 'Something went wrong. Please try again.',
         );
       } else {
-        _resetSignInAttempt(
-          error: 'Something went wrong. Please try again.',
-        );
+        _resetSignInAttempt(error: 'Something went wrong. Please try again.');
       }
       return false;
     }
@@ -142,10 +139,9 @@ class AuthNotifier extends Notifier<AuthState> {
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      await ref.read(authRepositoryProvider).acceptInvite(
-            token: token,
-            password: password,
-          );
+      await ref
+          .read(authRepositoryProvider)
+          .acceptInvite(token: token, password: password);
       state = state.copyWith(isLoading: false);
       return true;
     } on ApiException catch (error) {
@@ -172,21 +168,73 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<bool> updateProfile({
-    required String email,
-    required String phone,
+    String? email,
+    String? phone,
+    String? addressLine1,
+    String? city,
+    String? state,
+    String? postalCode,
+    String? emergencyContactName,
+    String? emergencyContactPhone,
   }) async {
     try {
       final profile = await ref.read(authRepositoryProvider).updateProfile(
             email: email,
             phone: phone,
+            addressLine1: addressLine1,
+            city: city,
+            state: state,
+            postalCode: postalCode,
+            emergencyContactName: emergencyContactName,
+            emergencyContactPhone: emergencyContactPhone,
           );
-      state = state.copyWith(user: profile, clearError: true);
+      this.state = this.state.copyWith(user: profile, clearError: true);
       return true;
     } on ApiException catch (error) {
-      state = state.copyWith(error: error.message);
+      this.state = this.state.copyWith(error: error.message);
+      return false;
+    } catch (_) {
+      this.state = this.state.copyWith(error: 'Something went wrong. Please try again.');
+      return false;
+    }
+  }
+
+  Future<bool> forgotPassword({required String email}) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      await ref.read(authRepositoryProvider).forgotPassword(email: email);
+      state = state.copyWith(isLoading: false);
+      return true;
+    } on ApiException catch (error) {
+      state = state.copyWith(isLoading: false, error: error.message);
       return false;
     } catch (_) {
       state = state.copyWith(
+        isLoading: false,
+        error: 'Something went wrong. Please try again.',
+      );
+      return false;
+    }
+  }
+
+  Future<bool> resetPassword({
+    required String token,
+    required String password,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      await ref.read(authRepositoryProvider).resetPassword(
+            token: token,
+            password: password,
+          );
+      state = state.copyWith(isLoading: false);
+      return true;
+    } on ApiException catch (error) {
+      state = state.copyWith(isLoading: false, error: error.message);
+      return false;
+    } catch (_) {
+      state = state.copyWith(
+        isLoading: false,
         error: 'Something went wrong. Please try again.',
       );
       return false;
@@ -198,4 +246,6 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 }
 
-final authProvider = NotifierProvider<AuthNotifier, AuthState>(AuthNotifier.new);
+final authProvider = NotifierProvider<AuthNotifier, AuthState>(
+  AuthNotifier.new,
+);

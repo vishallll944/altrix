@@ -98,7 +98,9 @@ class _AuthHeader extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     AltrixWordmark(compact: compact),
-                    SizedBox(height: compact ? responsive.rz(8) : responsive.rz(14)),
+                    SizedBox(
+                      height: compact ? responsive.rz(8) : responsive.rz(14),
+                    ),
                     Text(
                       'Your care, in one place',
                       style: TextStyle(
@@ -107,7 +109,9 @@ class _AuthHeader extends StatelessWidget {
                         fontWeight: FontWeight.w400,
                       ),
                     ),
-                    SizedBox(height: compact ? responsive.rz(8) : responsive.rz(14)),
+                    SizedBox(
+                      height: compact ? responsive.rz(8) : responsive.rz(14),
+                    ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -150,23 +154,16 @@ class ClinicFooter extends StatelessWidget {
       children: [
         Text(
           'Need help? Contact your clinic',
-          style: TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 13,
-          ),
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
         ),
         SizedBox(height: 10),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.favorite,
-              size: 16,
-              color: AppColors.primarySoft,
-            ),
+            Icon(Icons.favorite, size: 16, color: AppColors.primarySoft),
             SizedBox(width: 6),
             Text(
-              'Divine Counseling',
+              'Altrixs',
               style: TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 13.5,
@@ -192,10 +189,7 @@ class OrDivider extends StatelessWidget {
           padding: EdgeInsets.symmetric(horizontal: 12),
           child: Text(
             'or',
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 13,
-            ),
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
         ),
         Expanded(child: Divider(color: AppColors.border)),
@@ -214,7 +208,8 @@ class _GlowRingsPainter extends CustomPainter {
       ..strokeWidth = 1.2;
 
     for (var i = 1; i <= 5; i++) {
-      paint.color = const Color(0xFF6B63F0).withValues(alpha: 0.08 + (i * 0.02));
+      paint.color = const Color(0xFF6B63F0)
+          .withValues(alpha: 0.08 + (i * 0.02));
       canvas.drawCircle(center, 70.0 * i, paint);
     }
 

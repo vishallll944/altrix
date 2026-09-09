@@ -36,21 +36,47 @@ class FakeAuthRepository implements AuthRepository {
 
   @override
   Future<User> updateProfile({
-    required String email,
-    required String phone,
+    String? email,
+    String? phone,
+    String? addressLine1,
+    String? city,
+    String? state,
+    String? postalCode,
+    String? emergencyContactName,
+    String? emergencyContactPhone,
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 100));
     _user = User(
       id: _user.id,
       name: _user.name,
-      email: email,
-      phone: phone,
+      email: email ?? _user.email,
+      phone: phone ?? _user.phone,
+      addressLine1: addressLine1 ?? _user.addressLine1,
+      city: city ?? _user.city,
+      state: state ?? _user.state,
+      postalCode: postalCode ?? _user.postalCode,
+      emergencyContactName: emergencyContactName ?? _user.emergencyContactName,
+      emergencyContactPhone:
+          emergencyContactPhone ?? _user.emergencyContactPhone,
     );
     return _user;
   }
 
   @override
   Future<void> acceptInvite({
+    required String token,
+    required String password,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+  }
+
+  @override
+  Future<void> forgotPassword({required String email}) async {
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+  }
+
+  @override
+  Future<void> resetPassword({
     required String token,
     required String password,
   }) async {

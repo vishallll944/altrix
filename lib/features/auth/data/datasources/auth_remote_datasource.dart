@@ -78,4 +78,48 @@ class AuthRemoteDataSource {
       throw ApiException.fromDio(error);
     }
   }
+
+  Future<void> forgotPassword(String email) async {
+    _ensureApiConfigured();
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        ApiEndpoints.patientForgotPassword,
+        data: {'email': email},
+      );
+      final data = response.data;
+      if (data != null && data['success'] == false) {
+        throw ApiException(
+          data['error'] as String? ?? 'Could not send reset email',
+          statusCode: response.statusCode,
+        );
+      }
+    } on DioException catch (error) {
+      throw ApiException.fromDio(error);
+    }
+  }
+
+  Future<void> resetPassword({
+    required String token,
+    required String password,
+  }) async {
+    _ensureApiConfigured();
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        ApiEndpoints.patientResetPassword,
+        data: {
+          'token': token,
+          'password': password,
+        },
+      );
+      final data = response.data;
+      if (data != null && data['success'] == false) {
+        throw ApiException(
+          data['error'] as String? ?? 'Could not reset password',
+          statusCode: response.statusCode,
+        );
+      }
+    } on DioException catch (error) {
+      throw ApiException.fromDio(error);
+    }
+  }
 }

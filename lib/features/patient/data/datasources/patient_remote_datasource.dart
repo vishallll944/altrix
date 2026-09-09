@@ -369,4 +369,35 @@ class PatientRemoteDataSource {
     );
     return unwrapApiPayload(response);
   }
+
+  Future<List<PatientFormModel>> getForms({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    final data = await _request(
+      () => _dio.get<Map<String, dynamic>>(
+        ApiEndpoints.patientForms,
+        queryParameters: {
+          'page': page,
+          'limit': limit,
+        },
+      ),
+    );
+    final payload = unwrapApiPayload(data);
+    return extractListFromPayload(payload, keys: const ['forms', 'items'])
+        .map(PatientFormModel.fromJson)
+        .toList();
+  }
+
+  Future<PatientFormModel> getForm(String id) async {
+    final data = await _request(
+      () => _dio.get<Map<String, dynamic>>(ApiEndpoints.patientForm(id)),
+    );
+    final payload = unwrapApiPayload(data);
+    final form = payload['form'];
+    if (form is Map<String, dynamic>) {
+      return PatientFormModel.fromJson(form);
+    }
+    return PatientFormModel.fromJson(payload);
+  }
 }

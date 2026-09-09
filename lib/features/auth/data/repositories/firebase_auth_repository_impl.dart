@@ -44,10 +44,32 @@ class FirebaseAuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<User> updateProfile({
-    required String email,
-    required String phone,
+    String? email,
+    String? phone,
+    String? addressLine1,
+    String? city,
+    String? state,
+    String? postalCode,
+    String? emergencyContactName,
+    String? emergencyContactPhone,
   }) {
-    return _firebase.updateProfile(email: email, phone: phone);
+    return _firebase.updateProfile(
+      email: email ?? '',
+      phone: phone ?? '',
+    );
+  }
+
+  @override
+  Future<void> forgotPassword({required String email}) {
+    return _rest.forgotPassword(email);
+  }
+
+  @override
+  Future<void> resetPassword({
+    required String token,
+    required String password,
+  }) {
+    return _rest.resetPassword(token: token, password: password);
   }
 
   @override

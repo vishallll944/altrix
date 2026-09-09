@@ -10,11 +10,26 @@ abstract class AuthRepository {
   Future<User> getProfile();
 
   Future<User> updateProfile({
-    required String email,
-    required String phone,
+    String? email,
+    String? phone,
+    String? addressLine1,
+    String? city,
+    String? state,
+    String? postalCode,
+    String? emergencyContactName,
+    String? emergencyContactPhone,
   });
 
   Future<void> acceptInvite({
+    required String token,
+    required String password,
+  });
+
+  Future<void> forgotPassword({
+    required String email,
+  });
+
+  Future<void> resetPassword({
     required String token,
     required String password,
   });

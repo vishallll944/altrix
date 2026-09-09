@@ -1,5 +1,43 @@
 import 'package:dio/dio.dart';
 
+String? extractApiErrorMessage(dynamic data) {
+  if (data is! Map<String, dynamic>) return null;
+  final error = data['error'] ?? data['message'];
+  if (error is String && error.isNotEmpty) {
+    return error;
+  }
+
+  if (error is Map) {
+    final msg = error['message'] ?? error['error'];
+    if (msg is String && msg.isNotEmpty) {
+      final fields = error['fields'];
+      if (fields is Map && fields.isNotEmpty) {
+        final fieldErrors = fields.entries
+            .map((e) => '${e.key}: ${e.value}')
+            .join(', ');
+        if (fieldErrors.isNotEmpty) {
+          return '$msg ($fieldErrors)';
+        }
+      }
+      return msg;
+    }
+  }
+
+  final nestedData = data['data'];
+  if (nestedData is Map<String, dynamic>) {
+    final nested = nestedData['error'] ?? nestedData['message'];
+    if (nested is String && nested.isNotEmpty) {
+      return nested;
+    }
+    if (nested is Map) {
+      final msg = nested['message'] ?? nested['error'];
+      if (msg is String && msg.isNotEmpty) return msg;
+    }
+  }
+
+  return null;
+}
+
 class ApiException implements Exception {
   const ApiException(this.message, {this.statusCode});
 
@@ -11,8 +49,8 @@ class ApiException implements Exception {
     final data = response?.data;
 
     if (data is Map<String, dynamic>) {
-      final apiMessage = data['message'] ?? data['error'];
-      if (apiMessage is String && apiMessage.isNotEmpty) {
+      final apiMessage = extractApiErrorMessage(data);
+      if (apiMessage != null && apiMessage.isNotEmpty) {
         return ApiException(apiMessage, statusCode: response?.statusCode);
       }
     }

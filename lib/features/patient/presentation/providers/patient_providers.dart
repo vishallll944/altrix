@@ -59,3 +59,13 @@ final telehealthSessionProvider = FutureProvider.autoDispose
     .family<TelehealthSessionModel, String>((ref, joinToken) async {
   return ref.watch(patientRepositoryProvider).getTelehealthSession(joinToken);
 });
+
+final formsProvider =
+    FutureProvider.autoDispose<List<PatientFormModel>>((ref) async {
+  return ref.watch(patientRepositoryProvider).getForms();
+});
+
+final formDetailProvider =
+    FutureProvider.autoDispose.family<PatientFormModel, String>((ref, id) async {
+  return ref.watch(patientRepositoryProvider).getForm(id);
+});

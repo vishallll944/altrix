@@ -64,10 +64,7 @@ class AppTextField extends StatelessWidget {
             color: AppColors.textPrimary,
             fontWeight: FontWeight.w500,
           ),
-          decoration: InputDecoration(
-            hintText: hint,
-            suffixIcon: suffix,
-          ),
+          decoration: InputDecoration(hintText: hint, suffixIcon: suffix),
         ),
       ],
     );
@@ -113,9 +110,7 @@ class _PasswordFieldState extends State<PasswordField> {
       suffix: IconButton(
         onPressed: () => setState(() => _obscure = !_obscure),
         icon: Icon(
-          _obscure
-              ? Icons.visibility_outlined
-              : Icons.visibility_off_outlined,
+          _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
           color: AppColors.iconMuted,
         ),
       ),

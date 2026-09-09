@@ -33,11 +33,26 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<User> updateProfile({
-    required String email,
-    required String phone,
+    String? email,
+    String? phone,
+    String? addressLine1,
+    String? city,
+    String? state,
+    String? postalCode,
+    String? emergencyContactName,
+    String? emergencyContactPhone,
   }) async {
     final response = await _remoteDataSource.updateProfile(
-      UpdateProfileRequest(email: email, phone: phone),
+      UpdateProfileRequest(
+        email: email,
+        phone: phone,
+        addressLine1: addressLine1,
+        city: city,
+        state: state,
+        postalCode: postalCode,
+        emergencyContactName: emergencyContactName,
+        emergencyContactPhone: emergencyContactPhone,
+      ),
     );
     return response.client.toEntity();
   }
@@ -49,6 +64,24 @@ class AuthRepositoryImpl implements AuthRepository {
   }) {
     return _remoteDataSource.acceptInvite(
       InviteAcceptRequest(token: token, password: password),
+    );
+  }
+
+  @override
+  Future<void> forgotPassword({
+    required String email,
+  }) {
+    return _remoteDataSource.forgotPassword(email);
+  }
+
+  @override
+  Future<void> resetPassword({
+    required String token,
+    required String password,
+  }) {
+    return _remoteDataSource.resetPassword(
+      token: token,
+      password: password,
     );
   }
 }

@@ -5,6 +5,7 @@ import '../core/responsive/responsive.dart';
 import '../core/responsive/responsive_widgets.dart';
 import '../features/auth/presentation/providers/auth_provider.dart';
 import '../features/auth/presentation/screens/sign_in_screen.dart';
+import '../features/patient/presentation/screens/forms_screen.dart';
 import '../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../theme/app_colors.dart';
 
@@ -83,7 +84,7 @@ class ScheduleScreen extends StatelessWidget {
                     day: '15',
                     weekday: 'THU',
                     title: 'Thu, May 15  ·  10:00 AM',
-                    provider: 'Divine Counseling',
+                    provider: 'Altrixs',
                     visitType: 'In-person',
                     duration: '50 min',
                     icon: Icons.location_on_rounded,
@@ -717,14 +718,14 @@ class MessagesScreen extends StatelessWidget {
                   ),
                   SizedBox(height: responsive.rz(14)),
                   _MessageThreadCard(
-                    initials: 'DC',
-                    name: 'Divine Counseling',
+                    initials: 'AL',
+                    name: 'Altrixs',
                     preview: 'Reminder: complete PHQ-9 before Friday',
                     time: '1h ago',
                     unreadCount: 1,
                     gradient: const [Color(0xFFEDE9FE), Color(0xFFD8D2FF)],
                     accentColor: AppColors.primary,
-                    onTap: () => _showMessageToast(context, 'Divine Counseling'),
+                    onTap: () => _showMessageToast(context, 'Altrixs'),
                   ),
                   SizedBox(height: responsive.rz(10)),
                   _MessageThreadCard(
@@ -792,7 +793,11 @@ class CareScreen extends StatelessWidget {
                   const _CareStatsRow(),
                   SizedBox(height: responsive.rz(20)),
                   _CareFeaturedCard(
-                    onTap: () => _showCareToast(context, 'PHQ-9 form'),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const FormsScreen()),
+                      );
+                    },
                   ),
                   SizedBox(height: responsive.rz(24)),
                   Text(
@@ -813,7 +818,11 @@ class CareScreen extends StatelessWidget {
                     badge: 'Due soon',
                     gradient: const [Color(0xFFFFF4E5), Color(0xFFFFE4C7)],
                     iconColor: AppColors.mood2,
-                    onTap: () => _showCareToast(context, 'PHQ-9'),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const FormsScreen()),
+                      );
+                    },
                   ),
                   _CareItemCard(
                     icon: Icons.menu_book_outlined,
@@ -1899,7 +1908,7 @@ class _ProfileHeroCard extends StatelessWidget {
                   ),
                   SizedBox(height: responsive.rz(4)),
                   Text(
-                    'Divine Counseling  ·  Maryland',
+                    'Altrixs  ·  Maryland',
                     style: responsiveTextStyle(
                       context,
                       fontSize: 13.5,

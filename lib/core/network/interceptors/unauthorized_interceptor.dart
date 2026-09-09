@@ -18,6 +18,8 @@ class UnauthorizedInterceptor extends Interceptor {
     return path.contains(ApiEndpoints.patientLogin) ||
         path.contains(ApiEndpoints.patientInviteAccept) ||
         path.contains(ApiEndpoints.patientInvitePreview) ||
+        path.contains(ApiEndpoints.patientForgotPassword) ||
+        path.contains(ApiEndpoints.patientResetPassword) ||
         path.contains('/api/telehealth/');
   }
 

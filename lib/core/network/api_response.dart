@@ -124,19 +124,4 @@ Map<String, dynamic> clientJsonFromPayload(Map<String, dynamic> payload) {
   throw const ApiException('Invalid client data in response');
 }
 
-String? apiErrorMessage(Map<String, dynamic> json) {
-  final error = json['error'] ?? json['message'];
-  if (error is String && error.isNotEmpty) {
-    return error;
-  }
-
-  final data = json['data'];
-  if (data is Map<String, dynamic>) {
-    final nested = data['error'] ?? data['message'];
-    if (nested is String && nested.isNotEmpty) {
-      return nested;
-    }
-  }
-
-  return null;
-}
+String? apiErrorMessage(Map<String, dynamic> json) => extractApiErrorMessage(json);

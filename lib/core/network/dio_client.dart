@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/env.dart';
@@ -23,6 +24,15 @@ final dioProvider = Provider<Dio>((ref) {
     createLoadingInterceptor(ref),
     createAuthInterceptor(ref),
     createUnauthorizedInterceptor(ref),
+    if (kDebugMode)
+      LogInterceptor(
+        request: true,
+        requestHeader: true,
+        requestBody: true,
+        responseHeader: false,
+        responseBody: true,
+        error: true,
+      ),
   ]);
 
   return dio;

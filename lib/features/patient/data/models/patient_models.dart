@@ -761,3 +761,41 @@ class TelehealthSessionModel {
     );
   }
 }
+
+class PatientFormModel {
+  const PatientFormModel({
+    required this.id,
+    required this.title,
+    required this.status,
+    required this.dueAt,
+    required this.description,
+    required this.signedAt,
+    required this.raw,
+  });
+
+  final String id;
+  final String title;
+  final String status; // pending, signed, expired, declined
+  final String dueAt;
+  final String description;
+  final String signedAt;
+  final Map<String, dynamic> raw;
+
+  bool get isPending => status.toLowerCase() == 'pending';
+  bool get isSigned => status.toLowerCase() == 'signed';
+  bool get isExpired => status.toLowerCase() == 'expired';
+  bool get isDeclined => status.toLowerCase() == 'declined';
+
+  factory PatientFormModel.fromJson(Map<String, dynamic> json) {
+    final payload = unwrapApiPayload(json);
+    return PatientFormModel(
+      id: readString(payload, ['id', '_id', 'formId']),
+      title: readString(payload, ['title', 'name', 'formName', 'label'], fallback: 'Form'),
+      status: readString(payload, ['status', 'state'], fallback: 'pending'),
+      dueAt: readString(payload, ['dueAt', 'due_at', 'dueDate', 'due_date']),
+      description: readString(payload, ['description', 'instructions', 'body', 'subtitle']),
+      signedAt: readString(payload, ['signedAt', 'signed_at', 'completedAt', 'completed_at']),
+      raw: payload,
+    );
+  }
+}

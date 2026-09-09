@@ -125,4 +125,9 @@ class PatientRepository {
     Map<String, dynamic>? data,
   }) =>
       _remote.sendTelehealthSignal(joinToken: joinToken, type: type, data: data);
+
+  Future<List<PatientFormModel>> getForms({int page = 1, int limit = 20}) =>
+      _remote.getForms(page: page, limit: limit);
+
+  Future<PatientFormModel> getForm(String id) => _remote.getForm(id);
 }
