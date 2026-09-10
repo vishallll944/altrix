@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../features/auth/presentation/providers/auth_providers.dart';
 import '../../../features/auth/presentation/providers/auth_token_provider.dart';
 
 class AuthInterceptor extends Interceptor {
@@ -22,5 +23,17 @@ class AuthInterceptor extends Interceptor {
 }
 
 Interceptor createAuthInterceptor(Ref ref) {
-  return AuthInterceptor(() => ref.read(authTokenProvider));
+  return AuthInterceptor(() {
+    final token = ref.read(authTokenProvider);
+    if (token != null && token.isNotEmpty) return token;
+    try {
+      final prefs = ref.read(sharedPreferencesProvider);
+      final stored = prefs.getString('auth_token');
+      if (stored != null && stored.isNotEmpty) {
+        ref.read(authTokenProvider.notifier).state = stored;
+        return stored;
+      }
+    } catch (_) {}
+    return null;
+  });
 }

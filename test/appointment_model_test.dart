@@ -38,5 +38,26 @@ void main() {
     expect(appointment.hasJoinLink, isTrue);
     expect(appointment.isVirtual, isTrue);
     expect(appointment.providerName, 'Clinic Admin');
+    expect(appointment.timeLabel, '10:20 AM');
+    expect(appointment.endTimeLabel, '11:10 AM');
+    expect(appointment.duration, '50 min');
+  });
+
+  test('AppointmentModel formats startTime 15:49 and endTime 16:39 consistently without UTC distortion', () {
+    final appointment = AppointmentModel.fromJson({
+      'id': 'appt-123',
+      'type': 'Consultation',
+      'date': '2026-09-10',
+      'startTime': '15:49',
+      'endTime': '16:39',
+      'startsAt': '2026-09-10T15:49:00.000Z',
+      'endsAt': '2026-09-10T16:39:00.000Z',
+      'status': 'scheduled',
+      'isVirtual': false,
+    });
+
+    expect(appointment.timeLabel, '3:49 PM');
+    expect(appointment.endTimeLabel, '4:39 PM');
+    expect(appointment.duration, '50 min');
   });
 }

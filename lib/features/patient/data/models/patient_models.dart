@@ -63,15 +63,21 @@ class AppointmentModel {
     ]);
     final endTime = readString(json, ['endTime', 'end_time']);
     final startsAt = readString(json, ['startsAt', 'starts_at', 'scheduledAt', 'scheduled_at']);
+    final endsAt = readString(json, ['endsAt', 'ends_at']);
     final sortDateTime = _parseSortDateTime(
       startsAt: startsAt,
       date: date,
       startTime: startTime,
     );
+    final endSortDateTime = _parseSortDateTime(
+      startsAt: endsAt,
+      date: date,
+      startTime: endTime,
+    );
 
-  final formattedDate = _formatDateLabel(sortDateTime, date);
-  final formattedStart = _formatTimeLabel(startTime, sortDateTime);
-  final formattedEnd = _formatTimeLabel(endTime, null);
+    final formattedDate = _formatDateLabel(sortDateTime, date);
+    final formattedStart = _formatTimeLabel(startTime, sortDateTime);
+    final formattedEnd = _formatTimeLabel(endTime, endSortDateTime);
 
     return AppointmentModel(
       id: readString(json, ['id', '_id']),
@@ -155,18 +161,20 @@ DateTime? _parseSortDateTime({
   required String date,
   required String startTime,
 }) {
+  final normalizedDate = date.contains('T') ? date.split('T').first : date;
+  if (normalizedDate.isNotEmpty && startTime.isNotEmpty) {
+    final time = startTime.length == 5 ? '$startTime:00' : startTime;
+    final parsed = DateTime.tryParse('${normalizedDate}T$time');
+    if (parsed != null) return parsed;
+  }
+
   if (startsAt.isNotEmpty) {
     return DateTime.tryParse(startsAt)?.toLocal();
   }
-  if (date.isEmpty) return null;
-
-  final normalizedDate = date.contains('T') ? date.split('T').first : date;
-  if (startTime.isEmpty) {
+  if (normalizedDate.isNotEmpty) {
     return DateTime.tryParse(normalizedDate);
   }
-
-  final time = startTime.length == 5 ? '$startTime:00' : startTime;
-  return DateTime.tryParse('${normalizedDate}T$time')?.toLocal();
+  return null;
 }
 
 String _formatDateLabel(DateTime? sortDateTime, String rawDate) {
@@ -188,12 +196,29 @@ String _formatDateLabel(DateTime? sortDateTime, String rawDate) {
   return rawDate;
 }
 
-String _formatTimeLabel(String rawTime, DateTime? sortDateTime) {
-  if (sortDateTime != null) {
-    final hour = sortDateTime.hour;
-    final minute = sortDateTime.minute.toString().padLeft(2, '0');
+String _formatTimeLabel(String rawTime, DateTime? fallbackDateTime) {
+  final trimmed = rawTime.trim();
+  if (trimmed.isNotEmpty) {
+    if (RegExp(r'^\d{1,2}:\d{2}\s*(?:AM|PM)$', caseSensitive: false).hasMatch(trimmed)) {
+      return trimmed;
+    }
+    final clockMatch = RegExp(r'^(\d{1,2}):(\d{2})(?::\d{2})?$').firstMatch(trimmed);
+    if (clockMatch != null) {
+      final hour = int.tryParse(clockMatch.group(1)!);
+      final minute = int.tryParse(clockMatch.group(2)!);
+      if (hour != null && minute != null && hour >= 0 && hour < 24 && minute >= 0 && minute < 60) {
+        final period = hour >= 12 ? 'PM' : 'AM';
+        final hour12 = hour % 12 == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+        return '$hour12:${minute.toString().padLeft(2, '0')} $period';
+      }
+    }
+  }
+
+  if (fallbackDateTime != null) {
+    final hour = fallbackDateTime.hour;
+    final minute = fallbackDateTime.minute.toString().padLeft(2, '0');
     final period = hour >= 12 ? 'PM' : 'AM';
-    final hour12 = hour % 12 == 0 ? 12 : hour % 12;
+    final hour12 = hour % 12 == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
     return '$hour12:$minute $period';
   }
   return rawTime;
@@ -281,6 +306,9 @@ class ConversationModel {
     required this.lastMessageAt,
     required this.unreadCount,
     required this.topic,
+    this.avatarUrl = '',
+    this.participantName = '',
+    this.participantRole = '',
     required this.raw,
   });
 
@@ -290,12 +318,76 @@ class ConversationModel {
   final String lastMessageAt;
   final int unreadCount;
   final String topic;
+  final String avatarUrl;
+  final String participantName;
+  final String participantRole;
   final Map<String, dynamic> raw;
 
+  String get effectiveName {
+    if (participantName.isNotEmpty) return participantName;
+    if (title.isNotEmpty) return title;
+    return 'Care Team';
+  }
+
+  String get initials {
+    final name = effectiveName.trim();
+    if (name.isEmpty) return 'CT';
+    final parts = name.split(RegExp(r'\s+'));
+    if (parts.length == 1) {
+      return parts.first.isNotEmpty ? parts.first[0].toUpperCase() : 'C';
+    }
+    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+  }
+
+  String get displayTime {
+    if (lastMessageAt.isEmpty) return '';
+    final dt = DateTime.tryParse(lastMessageAt)?.toLocal();
+    if (dt == null) return lastMessageAt;
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inDays == 0 && now.day == dt.day) {
+      final hour = dt.hour;
+      final minute = dt.minute.toString().padLeft(2, '0');
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final hour12 = hour % 12 == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+      return '$hour12:$minute $period';
+    }
+    if (diff.inDays == 1 || (diff.inDays == 0 && now.day != dt.day)) {
+      return 'Yesterday';
+    }
+    if (diff.inDays < 7) {
+      const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      return weekdays[dt.weekday - 1];
+    }
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[dt.month - 1]} ${dt.day}';
+  }
+
   factory ConversationModel.fromJson(Map<String, dynamic> json) {
+    final participant = json['participant'] ?? json['clinician'] ?? json['doctor'] ?? json['user'];
+    var pName = '';
+    var pAvatar = '';
+    var pRole = '';
+    if (participant is Map<String, dynamic>) {
+      pName = readString(participant, ['name', 'fullName', 'full_name', 'title']);
+      pAvatar = readString(participant, ['avatar', 'avatarUrl', 'avatar_url', 'imageUrl', 'photoUrl']);
+      pRole = readString(participant, ['role', 'title', 'specialty']);
+    }
+
+    final title = readString(json, [
+      'title',
+      'name',
+      'clinicName',
+      'clinic_name',
+      'doctorName',
+      'doctor_name',
+      'clinicianName',
+      'clinician_name',
+    ]);
+
     return ConversationModel(
       id: readString(json, ['id', '_id', 'conversationId']),
-      title: readString(json, ['title', 'name', 'clinicName', 'clinic_name']),
+      title: title,
       preview: readString(json, [
         'preview',
         'lastMessage',
@@ -312,6 +404,13 @@ class ConversationModel {
       ]),
       unreadCount: readInt(json, ['unreadCount', 'unread_count', 'unread']) ?? 0,
       topic: readString(json, ['topic', 'category']),
+      avatarUrl: pAvatar.isNotEmpty
+          ? pAvatar
+          : readString(json, ['avatar', 'avatarUrl', 'avatar_url', 'imageUrl', 'photoUrl']),
+      participantName: pName,
+      participantRole: pRole.isNotEmpty
+          ? pRole
+          : readString(json, ['role', 'participantRole', 'participant_role']),
       raw: json,
     );
   }
@@ -324,6 +423,10 @@ class MessageModel {
     required this.sender,
     required this.createdAt,
     required this.isRead,
+    this.senderName = '',
+    this.senderAvatar = '',
+    this.isPending = false,
+    this.hasError = false,
     required this.raw,
   });
 
@@ -332,13 +435,132 @@ class MessageModel {
   final String sender;
   final String createdAt;
   final bool isRead;
+  final String senderName;
+  final String senderAvatar;
+  final bool isPending;
+  final bool hasError;
   final Map<String, dynamic> raw;
 
+  MessageModel copyWith({
+    String? id,
+    String? body,
+    String? sender,
+    String? createdAt,
+    bool? isRead,
+    String? senderName,
+    String? senderAvatar,
+    bool? isPending,
+    bool? hasError,
+    Map<String, dynamic>? raw,
+  }) {
+    return MessageModel(
+      id: id ?? this.id,
+      body: body ?? this.body,
+      sender: sender ?? this.sender,
+      createdAt: createdAt ?? this.createdAt,
+      isRead: isRead ?? this.isRead,
+      senderName: senderName ?? this.senderName,
+      senderAvatar: senderAvatar ?? this.senderAvatar,
+      isPending: isPending ?? this.isPending,
+      hasError: hasError ?? this.hasError,
+      raw: raw ?? this.raw,
+    );
+  }
+
+  bool isFromMe({String? currentUserId, String? currentUserName}) {
+    final s = sender.toLowerCase().trim();
+    if (s == 'patient' || s == 'client' || s == 'me' || s == 'user') {
+      return true;
+    }
+    final rawSenderId = readString(raw, [
+      'senderId',
+      'sender_id',
+      'clientId',
+      'client_id',
+      'userId',
+      'user_id',
+      'authorId',
+    ]);
+    if (currentUserId != null && currentUserId.isNotEmpty && rawSenderId.isNotEmpty) {
+      if (rawSenderId == currentUserId) return true;
+    }
+    if (currentUserName != null && currentUserName.isNotEmpty) {
+      if (senderName.isNotEmpty &&
+          senderName.toLowerCase().trim() == currentUserName.toLowerCase().trim()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  String get initials {
+    final name = senderName.isNotEmpty ? senderName : (sender.isNotEmpty ? sender : 'CT');
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length == 1) {
+      return parts.first.isNotEmpty ? parts.first[0].toUpperCase() : 'C';
+    }
+    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+  }
+
+  String get displayTime {
+    if (createdAt.isEmpty) return '';
+    final dt = DateTime.tryParse(createdAt)?.toLocal();
+    if (dt == null) return createdAt;
+    final hour = dt.hour;
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final hour12 = hour % 12 == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+    return '$hour12:$minute $period';
+  }
+
+  DateTime? get dateTime => DateTime.tryParse(createdAt)?.toLocal();
+
   factory MessageModel.fromJson(Map<String, dynamic> json) {
+    var senderStr = '';
+    var sName = '';
+    var sAvatar = '';
+    final senderRaw = json['sender'];
+    if (senderRaw is Map<String, dynamic>) {
+      senderStr = readString(senderRaw, ['role', 'type', 'id', 'name']);
+      sName = readString(senderRaw, ['name', 'fullName', 'full_name', 'title']);
+      sAvatar = readString(senderRaw, ['avatar', 'avatarUrl', 'avatar_url', 'imageUrl', 'photoUrl']);
+    } else if (senderRaw is String) {
+      senderStr = senderRaw;
+    }
+    if (senderStr.isEmpty) {
+      senderStr = readString(json, [
+        'sender',
+        'from',
+        'author',
+        'role',
+        'senderRole',
+        'sender_role',
+      ]);
+    }
+    if (sName.isEmpty) {
+      sName = readString(json, [
+        'senderName',
+        'sender_name',
+        'authorName',
+        'author_name',
+        'fromName',
+      ]);
+    }
+    if (sAvatar.isEmpty) {
+      sAvatar = readString(json, [
+        'senderAvatar',
+        'sender_avatar',
+        'avatar',
+        'avatarUrl',
+      ]);
+    }
+
     return MessageModel(
       id: readString(json, ['id', '_id', 'messageId']),
       body: readString(json, ['message', 'body', 'text', 'content']),
-      sender: readString(json, ['sender', 'from', 'author', 'role']),
+      sender: senderStr,
+      senderName: sName,
+      senderAvatar: sAvatar,
       createdAt: readString(json, ['createdAt', 'created_at', 'sentAt', 'sent_at']),
       isRead: readBool(json, ['isRead', 'is_read', 'read'], fallback: true),
       raw: json,

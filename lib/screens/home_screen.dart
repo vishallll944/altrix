@@ -154,11 +154,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     _QuickActions(
                       onCheckIn: _openCheckInSheet,
                       onMessages: () => widget.onNavigateToTab?.call(2),
-                      onForms: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const FormsScreen()),
-                        );
-                      },
+                      // onForms: () {
+                      //   Navigator.of(context).push(
+                      //     MaterialPageRoute(builder: (_) => const FormsScreen()),
+                      //   );
+                      // },
                       onResources: () => _toast('Resources coming soon'),
                     ),
                     SizedBox(height: responsive.rz(22)),
@@ -171,13 +171,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       onOpenMessages: () => widget.onNavigateToTab?.call(2),
                     ),
                     SizedBox(height: responsive.rz(16)),
-                    _UpcomingCard(
-                      appointments: appointmentsAsync.maybeWhen(
-                        data: homeUpcomingAppointments,
-                        orElse: () => const <AppointmentModel>[],
-                      ),
-                      onViewAll: () => widget.onNavigateToTab?.call(1),
-                    ),
+                    // _UpcomingCard(
+                    //   appointments: appointmentsAsync.maybeWhen(
+                    //     data: homeUpcomingAppointments,
+                    //     orElse: () => const <AppointmentModel>[],
+                    //   ),
+                    //   onViewAll: () => widget.onNavigateToTab?.call(1),
+                    // ),
                     SizedBox(height: responsive.rz(16)),
                     _ProgressCard(progressAsync: progressAsync),
                   ],
@@ -1037,13 +1037,13 @@ class _QuickActions extends StatelessWidget {
   const _QuickActions({
     required this.onCheckIn,
     required this.onMessages,
-    required this.onForms,
+    //  required this.onForms,
     required this.onResources,
   });
 
   final VoidCallback onCheckIn;
   final VoidCallback onMessages;
-  final VoidCallback onForms;
+  // final VoidCallback onForms;
   final VoidCallback onResources;
 
   @override
@@ -1064,13 +1064,13 @@ class _QuickActions extends StatelessWidget {
         AppColors.primary,
         onMessages,
       ),
-      (
-        Icons.description_outlined,
-        'Forms',
-        const [Color(0xFFE8F4FF), Color(0xFFCCE8FF)],
-        const Color(0xFF3B82F6),
-        onForms,
-      ),
+      // (
+      //   Icons.description_outlined,
+      //   'Forms',
+      //   const [Color(0xFFE8F4FF), Color(0xFFCCE8FF)],
+      //   const Color(0xFF3B82F6),
+      //   onForms,
+      // ),
       (
         Icons.menu_book_outlined,
         'Resources',
@@ -1502,8 +1502,8 @@ class _TodaysWellnessSheetState extends State<_TodaysWellnessSheet> {
                 valueText: '$_sleep hrs',
                 value: _sleep.toDouble(),
                 min: 1,
-                max: 14,
-                divisions: 13,
+                max: 10,
+                divisions: 9,
                 activeColor: const Color(0xFF3B82F6),
                 badgeBgColor: const Color(0xFFDBEAFE),
                 badgeTextColor: const Color(0xFF2563EB),
@@ -2156,58 +2156,58 @@ Color _riskLevelColor(String riskLevel) {
   }
 }
 
-class _UpcomingCard extends StatelessWidget {
-  const _UpcomingCard({
-    required this.appointments,
-    this.onViewAll,
-  });
+// class _UpcomingCard extends StatelessWidget {
+//   const _UpcomingCard({
+//     required this.appointments,
+//     this.onViewAll,
+//   });
 
-  final List<AppointmentModel> appointments;
-  final VoidCallback? onViewAll;
+//   final List<AppointmentModel> appointments;
+//   final VoidCallback? onViewAll;
 
-  @override
-  Widget build(BuildContext context) {
-    final responsive = context.responsive;
+//   @override
+//   Widget build(BuildContext context) {
+//     final responsive = context.responsive;
 
-    return _SurfaceCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _SectionHeader(
-            title: 'Upcoming',
-            subtitle: 'More scheduled visits',
-          ),
-          SizedBox(height: responsive.rz(16)),
-          if (appointments.isEmpty)
-            Text(
-              'No more upcoming visits on home.',
-              style: responsiveTextStyle(
-                context,
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
-            )
-          else
-            for (final appointment in appointments)
-              Padding(
-                padding: EdgeInsets.only(bottom: responsive.rz(10)),
-                child: _UpcomingAppointmentRow(appointment: appointment),
-              ),
-          if (onViewAll != null) ...[
-            SizedBox(height: responsive.rz(8)),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton(
-                onPressed: onViewAll,
-                child: const Text('View all in Schedule'),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
+//     return _SurfaceCard(
+//       child: Column(
+//         crossAxisAlignment: CrossAxisAlignment.start,
+//         children: [
+//           const _SectionHeader(
+//             title: 'Upcoming',
+//             subtitle: 'More scheduled visits',
+//           ),
+//           SizedBox(height: responsive.rz(16)),
+//           if (appointments.isEmpty)
+//             Text(
+//               'No more upcoming visits on home.',
+//               style: responsiveTextStyle(
+//                 context,
+//                 fontSize: 14,
+//                 color: AppColors.textSecondary,
+//               ),
+//             )
+//           else
+//             for (final appointment in appointments)
+//               Padding(
+//                 padding: EdgeInsets.only(bottom: responsive.rz(10)),
+//                 child: _UpcomingAppointmentRow(appointment: appointment),
+//               ),
+//           if (onViewAll != null) ...[
+//             SizedBox(height: responsive.rz(8)),
+//             Align(
+//               alignment: Alignment.centerLeft,
+//               child: TextButton(
+//                 onPressed: onViewAll,
+//                 child: const Text('View all in Schedule'),
+//               ),
+//             ),
+//           ],
+//         ],
+//       ),
+//     );
+//   }
+// }
 
 class _UpcomingAppointmentRow extends StatelessWidget {
   const _UpcomingAppointmentRow({required this.appointment});

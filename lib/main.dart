@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/firebase/firebase_bootstrap.dart';
-import 'core/loading/loading_overlay_host.dart';
 import 'core/navigation/app_navigator.dart';
 import 'core/responsive/responsive_widgets.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
@@ -45,9 +44,7 @@ class AltrixApp extends StatelessWidget {
       title: 'Altrixs',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
-      builder: (context, child) => LoadingOverlayHost(
-        child: ResponsiveAppBuilder(child: child!),
-      ),
+      builder: (context, child) => ResponsiveAppBuilder(child: child!),
       home: const SplashScreen(),
     );
   }

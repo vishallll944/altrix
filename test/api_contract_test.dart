@@ -233,15 +233,15 @@ void main() {
       expect(capturedOptions, isNotNull);
       expect(capturedOptions!.path, '/api/patient/check-ins');
       expect(capturedOptions!.method, 'POST');
-      final decodedData = jsonDecode(capturedOptions!.data as String) as Map<String, dynamic>;
-      expect(decodedData, {
+      final requestData = capturedOptions!.data is String
+          ? jsonDecode(capturedOptions!.data as String) as Map<String, dynamic>
+          : capturedOptions!.data as Map<String, dynamic>;
+      expect(requestData, {
         'mood': 8,
         'stress': 3,
         'sleep': 7,
         'journal': 'Feeling much better today and rested well.',
       });
-      expect(capturedOptions!.headers['Content-Type'], 'application/json');
-      expect(capturedOptions!.headers['Accept'], 'application/json');
     });
   });
 }

@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/env.dart';
 import 'interceptors/auth_interceptor.dart';
-import 'interceptors/loading_interceptor.dart';
 import 'interceptors/unauthorized_interceptor.dart';
 
 final dioProvider = Provider<Dio>((ref) {
@@ -23,7 +22,6 @@ final dioProvider = Provider<Dio>((ref) {
   );
 
   dio.interceptors.addAll([
-    createLoadingInterceptor(ref),
     createAuthInterceptor(ref),
     createUnauthorizedInterceptor(ref),
     if (kDebugMode)

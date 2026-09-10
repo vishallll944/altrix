@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:dio/dio.dart';
 
 import '../../../../core/config/env.dart';
@@ -339,23 +337,16 @@ class PatientRemoteDataSource {
         ? journal.trim()
         : 'Feeling much better today and rested well.';
     final payload = <String, dynamic>{
-      'mood': mood,
-      'stress': stress,
-      'sleep': sleep,
+      'mood': mood.clamp(1, 10),
+      'stress': stress.clamp(1, 10),
+      'sleep': sleep.clamp(1, 10),
       'journal': journalText,
     };
 
     final data = await _request(
       () => _dio.post<Map<String, dynamic>>(
         ApiEndpoints.patientCheckIns,
-        data: jsonEncode(payload),
-        options: Options(
-          contentType: 'application/json',
-          headers: const {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-        ),
+        data: payload,
       ),
     );
     final unwrapped = unwrapApiPayload(data);
