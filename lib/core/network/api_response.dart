@@ -10,7 +10,8 @@ Map<String, dynamic> unwrapApiPayload(Map<String, dynamic> json) {
 
 void requireApiSuccess(Map<String, dynamic> json, [String fallback = 'Request failed']) {
   if (json['success'] != true) {
-    throw ApiException(apiErrorMessage(json) ?? fallback);
+    final code = extractApiErrorCode(json);
+    throw ApiException(apiErrorMessage(json) ?? fallback, code: code);
   }
 }
 
@@ -112,12 +113,17 @@ List<int> readIntList(Map<String, dynamic> json, List<String> keys) {
 }
 
 Map<String, dynamic> clientJsonFromPayload(Map<String, dynamic> payload) {
-  final client = payload['client'];
+  final client = payload['client'] ?? payload['patient'] ?? payload['user'];
   if (client is Map<String, dynamic>) {
     return client;
   }
+  if (client is Map) {
+    return Map<String, dynamic>.from(client);
+  }
 
-  if (payload.containsKey('id') && payload.containsKey('email')) {
+  if (payload.containsKey('id') ||
+      payload.containsKey('email') ||
+      payload.containsKey('name')) {
     return payload;
   }
 
@@ -125,3 +131,5 @@ Map<String, dynamic> clientJsonFromPayload(Map<String, dynamic> payload) {
 }
 
 String? apiErrorMessage(Map<String, dynamic> json) => extractApiErrorMessage(json);
+String? apiErrorCode(Map<String, dynamic> json) => extractApiErrorCode(json);
+

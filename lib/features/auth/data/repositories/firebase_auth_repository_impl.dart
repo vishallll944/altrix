@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart' hide User;
 
+import '../../../patient/data/models/patient_models.dart';
 import '../../domain/entities/auth_result.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -37,6 +38,11 @@ class FirebaseAuthRepositoryImpl implements AuthRepository {
       name: name,
       phone: phone,
     );
+  }
+
+  @override
+  Future<InvitePreviewModel> previewInvite(String token) {
+    return _rest.previewInvite(token);
   }
 
   @override

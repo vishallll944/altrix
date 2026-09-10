@@ -8,6 +8,27 @@ class PatientRepository {
 
   Future<InvitePreviewModel> previewInvite(String token) => _remote.previewInvite(token);
 
+  Future<Map<String, dynamic>> getProfile() => _remote.getProfile();
+
+  Future<Map<String, dynamic>> updateProfile({
+    String? phone,
+    String? addressLine1,
+    String? city,
+    String? state,
+    String? postalCode,
+    String? emergencyContactName,
+    String? emergencyContactPhone,
+  }) =>
+      _remote.updateProfile(
+        phone: phone,
+        addressLine1: addressLine1,
+        city: city,
+        state: state,
+        postalCode: postalCode,
+        emergencyContactName: emergencyContactName,
+        emergencyContactPhone: emergencyContactPhone,
+      );
+
   Future<DashboardModel> getDashboard() => _remote.getDashboard();
 
   Future<List<AppointmentModel>> getAppointments() => _remote.getAppointments();
@@ -95,8 +116,8 @@ class PatientRepository {
   Future<CheckInModel> createCheckIn({
     required int mood,
     required int stress,
-    int? sleep,
-    String? journal,
+    int sleep = 7,
+    String journal = 'Feeling much better today and rested well.',
   }) =>
       _remote.createCheckIn(
         mood: mood,

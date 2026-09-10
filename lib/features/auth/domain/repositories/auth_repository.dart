@@ -1,3 +1,4 @@
+import '../../../patient/data/models/patient_models.dart';
 import '../entities/auth_result.dart';
 import '../entities/user.dart';
 
@@ -6,6 +7,8 @@ abstract class AuthRepository {
     required String email,
     required String password,
   });
+
+  Future<InvitePreviewModel> previewInvite(String token);
 
   Future<User> getProfile();
 

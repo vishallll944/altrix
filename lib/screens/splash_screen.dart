@@ -269,58 +269,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 }
 
-class _AnimatedLoader extends StatefulWidget {
+class _AnimatedLoader extends StatelessWidget {
   const _AnimatedLoader();
 
   @override
-  State<_AnimatedLoader> createState() => _AnimatedLoaderState();
-}
-
-class _AnimatedLoaderState extends State<_AnimatedLoader>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(3, (index) {
-            final delay = index * 0.2;
-            final t = (_controller.value + delay) % 1.0;
-            final wave = t < 0.5 ? t * 2 : 2 - t * 2;
-            final scale = 0.6 + (Curves.easeInOut.transform(wave) * 0.4);
-            return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 5),
-              width: 8 * scale,
-              height: 8 * scale,
-              decoration: BoxDecoration(
-                color: AppColors.primarySoft.withValues(
-                  alpha: 0.5 + scale * 0.5,
-                ),
-                shape: BoxShape.circle,
-              ),
-            );
-          }),
-        );
-      },
+    return const SizedBox(
+      width: 26,
+      height: 26,
+      child: CircularProgressIndicator(
+        strokeWidth: 2.5,
+        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+      ),
     );
   }
 }

@@ -90,7 +90,7 @@ class _InviteAcceptScreenState extends ConsumerState<InviteAcceptScreen> {
                 'Checking your invite link...',
                 style: TextStyle(color: AppColors.textSecondary),
               ),
-              error: (_, __) => const Text(
+              error: (_, _) => const Text(
                 'This invite link could not be verified. You can still try setting a password.',
                 style: TextStyle(color: AppColors.textSecondary, height: 1.4),
               ),

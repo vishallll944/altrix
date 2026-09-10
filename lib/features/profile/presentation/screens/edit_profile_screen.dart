@@ -17,7 +17,6 @@ class EditProfileScreen extends ConsumerStatefulWidget {
 
 class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
   final _cityController = TextEditingController();
@@ -32,7 +31,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   void initState() {
     super.initState();
     final user = ref.read(authProvider).user;
-    _emailController.text = user?.email ?? '';
     _phoneController.text = user?.phone ?? '';
     _addressController.text = user?.addressLine1 ?? '';
     _cityController.text = user?.city ?? '';
@@ -44,7 +42,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   @override
   void dispose() {
-    _emailController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
     _cityController.dispose();
@@ -53,11 +50,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _emergencyNameController.dispose();
     _emergencyPhoneController.dispose();
     super.dispose();
-  }
-
-  bool _isValidEmail(String value) {
-    final email = value.trim();
-    return email.isNotEmpty && email.contains('@') && email.contains('.');
   }
 
   void _enableInteractionValidation() {
@@ -71,17 +63,58 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       return;
     }
 
+    final user = ref.read(authProvider).user;
+    final currentPhone = (user?.phone ?? '').trim();
+    final currentAddress = (user?.addressLine1 ?? '').trim();
+    final currentCity = (user?.city ?? '').trim();
+    final currentState = (user?.state ?? '').trim();
+    final currentZip = (user?.postalCode ?? '').trim();
+    final currentEmName = (user?.emergencyContactName ?? '').trim();
+    final currentEmPhone = (user?.emergencyContactPhone ?? '').trim();
+
+    final newPhone = _phoneController.text.trim();
+    final newAddress = _addressController.text.trim();
+    final newCity = _cityController.text.trim();
+    final newState = _stateController.text.trim();
+    final newZip = _zipController.text.trim();
+    final newEmName = _emergencyNameController.text.trim();
+    final newEmPhone = _emergencyPhoneController.text.trim();
+
+    // Sirf wahi fields bhejo jo change hui hain
+    final phoneToSend = newPhone != currentPhone ? newPhone : null;
+    final addressToSend = newAddress != currentAddress ? newAddress : null;
+    final cityToSend = newCity != currentCity ? newCity : null;
+    final stateToSend = newState != currentState ? newState : null;
+    final zipToSend = newZip != currentZip ? newZip : null;
+    final emNameToSend = newEmName != currentEmName ? newEmName : null;
+    final emPhoneToSend = newEmPhone != currentEmPhone ? newEmPhone : null;
+
+    final hasChanges = phoneToSend != null ||
+        addressToSend != null ||
+        cityToSend != null ||
+        stateToSend != null ||
+        zipToSend != null ||
+        emNameToSend != null ||
+        emPhoneToSend != null;
+
+    if (!hasChanges) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No changes to save')),
+      );
+      Navigator.of(context).pop();
+      return;
+    }
+
     setState(() => _saving = true);
 
     final success = await ref.read(authProvider.notifier).updateProfile(
-          email: _emailController.text.trim(),
-          phone: _phoneController.text.trim(),
-          addressLine1: _addressController.text.trim(),
-          city: _cityController.text.trim(),
-          state: _stateController.text.trim(),
-          postalCode: _zipController.text.trim(),
-          emergencyContactName: _emergencyNameController.text.trim(),
-          emergencyContactPhone: _emergencyPhoneController.text.trim(),
+          phone: phoneToSend,
+          addressLine1: addressToSend,
+          city: cityToSend,
+          state: stateToSend,
+          postalCode: zipToSend,
+          emergencyContactName: emNameToSend,
+          emergencyContactPhone: emPhoneToSend,
         );
 
     if (!mounted) return;
@@ -173,28 +206,32 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             color: AppColors.textPrimary,
                           ),
                         ),
+                        if (user.email.isNotEmpty) ...[
+                          SizedBox(height: responsive.rz(12)),
+                          Text(
+                            'Email',
+                            style: responsiveTextStyle(
+                              context,
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          SizedBox(height: responsive.rz(4)),
+                          Text(
+                            user.email,
+                            style: responsiveTextStyle(
+                              context,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
                 ],
-                SizedBox(height: responsive.rz(20)),
-                AppTextField(
-                  label: 'Email',
-                  controller: _emailController,
-                  hint: 'patient@email.com',
-                  keyboardType: TextInputType.emailAddress,
-                  textInputAction: TextInputAction.next,
-                  autofillHints: const [AutofillHints.email],
-                  onChanged: (_) => _enableInteractionValidation(),
-                  validator: (value) {
-                    final email = value?.trim() ?? '';
-                    if (email.isEmpty) return 'Enter your email';
-                    if (!_isValidEmail(email)) {
-                      return 'Enter a valid email';
-                    }
-                    return null;
-                  },
-                ),
                 SizedBox(height: responsive.rz(16)),
                 AppTextField(
                   label: 'Phone',
@@ -232,40 +269,28 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   onChanged: (_) => _enableInteractionValidation(),
                 ),
                 SizedBox(height: responsive.rz(12)),
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: AppTextField(
-                        label: 'City',
-                        controller: _cityController,
-                        hint: 'Baltimore',
-                        textInputAction: TextInputAction.next,
-                        onChanged: (_) => _enableInteractionValidation(),
-                      ),
-                    ),
-                    SizedBox(width: responsive.rz(10)),
-                    Expanded(
-                      child: AppTextField(
-                        label: 'State',
-                        controller: _stateController,
-                        hint: 'MD',
-                        textInputAction: TextInputAction.next,
-                        onChanged: (_) => _enableInteractionValidation(),
-                      ),
-                    ),
-                    SizedBox(width: responsive.rz(10)),
-                    Expanded(
-                      flex: 2,
-                      child: AppTextField(
-                        label: 'Postal code',
-                        controller: _zipController,
-                        hint: '21201',
-                        textInputAction: TextInputAction.next,
-                        onChanged: (_) => _enableInteractionValidation(),
-                      ),
-                    ),
-                  ],
+                AppTextField(
+                  label: 'City',
+                  controller: _cityController,
+                  hint: 'Baltimore',
+                  textInputAction: TextInputAction.next,
+                  onChanged: (_) => _enableInteractionValidation(),
+                ),
+                SizedBox(height: responsive.rz(12)),
+                AppTextField(
+                  label: 'State',
+                  controller: _stateController,
+                  hint: 'MD',
+                  textInputAction: TextInputAction.next,
+                  onChanged: (_) => _enableInteractionValidation(),
+                ),
+                SizedBox(height: responsive.rz(12)),
+                AppTextField(
+                  label: 'Postal code',
+                  controller: _zipController,
+                  hint: '21201',
+                  textInputAction: TextInputAction.next,
+                  onChanged: (_) => _enableInteractionValidation(),
                 ),
                 SizedBox(height: responsive.rz(24)),
                 Text(

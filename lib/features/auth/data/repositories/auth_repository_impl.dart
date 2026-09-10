@@ -1,3 +1,4 @@
+import '../../../patient/data/models/patient_models.dart';
 import '../../domain/entities/auth_result.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -23,6 +24,11 @@ class AuthRepositoryImpl implements AuthRepository {
       token: response.token,
       user: response.client.toEntity(),
     );
+  }
+
+  @override
+  Future<InvitePreviewModel> previewInvite(String token) {
+    return _remoteDataSource.previewInvite(token);
   }
 
   @override

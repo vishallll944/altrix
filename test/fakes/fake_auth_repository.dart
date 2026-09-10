@@ -1,6 +1,7 @@
 import 'package:altrix/features/auth/domain/entities/auth_result.dart';
 import 'package:altrix/features/auth/domain/entities/user.dart';
 import 'package:altrix/features/auth/domain/repositories/auth_repository.dart';
+import 'package:altrix/features/patient/data/models/patient_models.dart';
 
 class FakeAuthRepository implements AuthRepository {
   FakeAuthRepository()
@@ -26,6 +27,17 @@ class FakeAuthRepository implements AuthRepository {
       phone: '555-1234',
     );
     return AuthResult(token: 'test-token', user: _user);
+  }
+
+  @override
+  Future<InvitePreviewModel> previewInvite(String token) async {
+    return const InvitePreviewModel(
+      valid: true,
+      email: 'maya@example.com',
+      clinicName: 'Altrix Health',
+      message: 'Invitation is valid',
+      raw: {},
+    );
   }
 
   @override

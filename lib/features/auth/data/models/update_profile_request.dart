@@ -21,18 +21,17 @@ class UpdateProfileRequest {
 
   Map<String, dynamic> toJson() {
     return {
-      if (email != null && email!.isNotEmpty) 'email': email,
-      if (phone != null && phone!.isNotEmpty) 'phone': phone,
-      if (addressLine1 != null && addressLine1!.isNotEmpty)
-        'addressLine1': addressLine1,
-      if (city != null && city!.isNotEmpty) 'city': city,
-      if (state != null && state!.isNotEmpty) 'state': state,
-      if (postalCode != null && postalCode!.isNotEmpty)
-        'postalCode': postalCode,
-      if (emergencyContactName != null && emergencyContactName!.isNotEmpty)
-        'emergencyContactName': emergencyContactName,
-      if (emergencyContactPhone != null && emergencyContactPhone!.isNotEmpty)
-        'emergencyContactPhone': emergencyContactPhone,
+      if (phone != null && phone!.trim().isNotEmpty) 'phone': phone!.trim(),
+      if (addressLine1 != null && addressLine1!.trim().isNotEmpty)
+        'addressLine1': addressLine1!.trim(),
+      if (city != null && city!.trim().isNotEmpty) 'city': city!.trim(),
+      if (state != null && state!.trim().isNotEmpty) 'state': state!.trim(),
+      if (postalCode != null && postalCode!.trim().isNotEmpty)
+        'postalCode': postalCode!.trim(),
+      if (emergencyContactName != null && emergencyContactName!.trim().isNotEmpty)
+        'emergencyContactName': emergencyContactName!.trim(),
+      if (emergencyContactPhone != null && emergencyContactPhone!.trim().isNotEmpty)
+        'emergencyContactPhone': emergencyContactPhone!.trim(),
     };
   }
 }

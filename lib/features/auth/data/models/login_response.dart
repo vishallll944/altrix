@@ -12,14 +12,24 @@ class LoginResponse {
   final ClientModel client;
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
-    if (json['success'] != true) {
-      throw ApiException(apiErrorMessage(json) ?? 'Login failed');
-    }
+    requireApiSuccess(json, 'Login failed');
 
     final payload = unwrapApiPayload(json);
+    final token = readString(
+      payload,
+      ['token', 'accessToken', 'access_token', 'jwt', 'bearerToken'],
+      fallback: readString(
+        json,
+        ['token', 'accessToken', 'access_token', 'jwt', 'bearerToken'],
+      ),
+    );
+
+    if (token.isEmpty) {
+      throw const ApiException('No authentication token received from server');
+    }
 
     return LoginResponse(
-      token: payload['token'] as String,
+      token: token,
       client: ClientModel.fromJson(clientJsonFromPayload(payload)),
     );
   }

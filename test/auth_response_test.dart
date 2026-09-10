@@ -37,6 +37,28 @@ void main() {
       expect(response.token, 'jwt-token');
       expect(response.client.name, 'vishal');
     });
+
+    test('parses exact user backend response', () {
+      final response = LoginResponse.fromJson({
+        'success': true,
+        'data': {
+          'token':
+              'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbXRpZDNwOWowMDAzcWZ3bTlscm4zdXNuIiwiY2xpZW50SWQiOiJjbXRpZDNwOWEwMDAxcWZ3bWIwc3VrNWk5IiwidHlwIjoicGF0aWVudCIsImNyZWRlbnRpYWwiOiI0MzA5YjkxMTg0MGY2MWVmZDJhNmJhMzJjY2U3ZjA2Mjk3ZDg1OWY1ODBjMDJjZTkxZDNjN2I4YmU1ZjIxY2RmIiwiaWF0IjoxNzg5MDI1NTQwLCJleHAiOjE3OTE2MTc1NDB9.riFImYugJxrG_Kfy8XzW5yTtcEuEA1mAWwPt-uVUqik',
+          'client': {
+            'id': 'cmtid3p9a0001qfwmb0suk5i9',
+            'name': 'vishal',
+            'email': 'vishal@mindaptix.com',
+            'phone': '7677876767675',
+          },
+        },
+      });
+
+      expect(response.token, startsWith('eyJhbGci'));
+      expect(response.client.id, 'cmtid3p9a0001qfwmb0suk5i9');
+      expect(response.client.name, 'vishal');
+      expect(response.client.email, 'vishal@mindaptix.com');
+      expect(response.client.phone, '7677876767675');
+    });
   });
 
   group('ProfileResponse', () {

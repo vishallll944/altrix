@@ -1,5 +1,11 @@
+import 'dart:convert';
+
 import 'package:altrix/core/network/api_exception.dart';
+import 'package:altrix/core/network/api_response.dart';
+import 'package:altrix/features/auth/data/models/client_model.dart';
+import 'package:dio/dio.dart';
 import 'package:altrix/features/auth/data/models/update_profile_request.dart';
+import 'package:altrix/features/patient/data/datasources/patient_remote_datasource.dart';
 import 'package:altrix/features/patient/data/models/patient_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -32,14 +38,39 @@ void main() {
       expect(message, 'Unauthorized access');
     });
 
-    test('extracts message from top-level message string', () {
+    test('extracts error code and message from standard error structure', () {
       final payload = {
         'success': false,
-        'message': 'Resource not found',
+        'error': {
+          'code': 'VALIDATION_ERROR',
+          'message': 'Invalid request',
+        },
       };
 
+      final code = extractApiErrorCode(payload);
       final message = extractApiErrorMessage(payload);
-      expect(message, 'Resource not found');
+
+      expect(code, 'VALIDATION_ERROR');
+      expect(message, 'Invalid request');
+    });
+
+    test('requireApiSuccess throws ApiException with code and message', () {
+      final payload = {
+        'success': false,
+        'error': {
+          'code': 'VALIDATION_ERROR',
+          'message': 'Invalid request',
+        },
+      };
+
+      try {
+        requireApiSuccess(payload);
+        fail('Should have thrown ApiException');
+      } on ApiException catch (e) {
+        expect(e.code, 'VALIDATION_ERROR');
+        expect(e.message, 'Invalid request');
+        expect(e.isValidationError, isTrue);
+      }
     });
   });
 
@@ -92,6 +123,125 @@ void main() {
       });
       expect(signedModel.isSigned, isTrue);
       expect(signedModel.isPending, isFalse);
+    });
+  });
+
+  group('ClientModel & Telehealth Model Parsing', () {
+    test('parses nested address and emergencyContact objects', () {
+      final json = {
+        'id': 'p_123',
+        'name': 'Rahul Sharma',
+        'email': 'rahul@example.com',
+        'phone': '+14155552671',
+        'address': {
+          'line1': '789 Market St',
+          'city': 'San Francisco',
+          'state': 'CA',
+          'postalCode': '94103',
+        },
+        'emergencyContact': {
+          'name': 'Pooja Sharma',
+          'phone': '+14155559999',
+        },
+      };
+
+      final client = ClientModel.fromJson(json);
+      expect(client.id, 'p_123');
+      expect(client.name, 'Rahul Sharma');
+      expect(client.addressLine1, '789 Market St');
+      expect(client.city, 'San Francisco');
+      expect(client.state, 'CA');
+      expect(client.postalCode, '94103');
+      expect(client.emergencyContactName, 'Pooja Sharma');
+      expect(client.emergencyContactPhone, '+14155559999');
+    });
+
+    test('parses TelehealthSessionModel with Zoom join link', () {
+      final json = {
+        'provider': 'zoom',
+        'joinUrl': 'https://zoom.us/j/1234567890?pwd=abc',
+        'status': 'ready',
+      };
+
+      final session = TelehealthSessionModel.fromJson(json);
+      expect(session.provider, 'zoom');
+      expect(session.joinUrl, 'https://zoom.us/j/1234567890?pwd=abc');
+      expect(session.status, 'ready');
+    });
+  });
+
+  group('Dio JSON Request Serialization', () {
+    test('verifies Dio serializes Map to valid JSON when contentType is configured', () async {
+      final dio = Dio(BaseOptions(
+        contentType: 'application/json',
+      ));
+      final options = RequestOptions(
+        path: '/api/patient/login',
+        data: {'email': 'user@example.com', 'password': 'secret'},
+        contentType: dio.options.contentType,
+      );
+      final body = await dio.transformer.transformRequest(options);
+      expect(body, '{"email":"user@example.com","password":"secret"}');
+    });
+  });
+
+  group('Patient Check-in API Contract', () {
+    test('createCheckIn sends expected json payload with mood, stress, sleep, journal', () async {
+      RequestOptions? capturedOptions;
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            capturedOptions = options;
+            return handler.resolve(
+              Response(
+                requestOptions: options,
+                statusCode: 201,
+                data: {
+                  'success': true,
+                  'data': {
+                    'checkIn': {
+                      'id': 'chk_123',
+                      'mood': 8,
+                      'stress': 3,
+                      'sleep': 7,
+                      'journal': 'Feeling much better today and rested well.',
+                      'createdAt': '2026-09-10T13:30:00.000Z',
+                    },
+                  },
+                },
+              ),
+            );
+          },
+        ),
+      );
+
+      final dataSource = PatientRemoteDataSource(dio);
+      final checkIn = await dataSource.createCheckIn(
+        mood: 8,
+        stress: 3,
+        sleep: 7,
+        journal: 'Feeling much better today and rested well.',
+      );
+
+      expect(checkIn.id, 'chk_123');
+      expect(checkIn.mood, 8);
+      expect(checkIn.stress, 3);
+      expect(checkIn.sleep, 7);
+      expect(checkIn.journal, 'Feeling much better today and rested well.');
+
+      expect(capturedOptions, isNotNull);
+      expect(capturedOptions!.path, '/api/patient/check-ins');
+      expect(capturedOptions!.method, 'POST');
+      final decodedData = jsonDecode(capturedOptions!.data as String) as Map<String, dynamic>;
+      expect(decodedData, {
+        'mood': 8,
+        'stress': 3,
+        'sleep': 7,
+        'journal': 'Feeling much better today and rested well.',
+      });
+      expect(capturedOptions!.headers['Content-Type'], 'application/json');
+      expect(capturedOptions!.headers['Accept'], 'application/json');
     });
   });
 }

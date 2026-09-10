@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 
 import '../../../../core/config/env.dart';
@@ -45,6 +47,47 @@ class PatientRemoteDataSource {
       ),
     );
     return InvitePreviewModel.fromJson(data);
+  }
+
+  Future<Map<String, dynamic>> getProfile() async {
+    final data = await _request(
+      () => _dio.get<Map<String, dynamic>>(ApiEndpoints.patientMe),
+    );
+    return unwrapApiPayload(data);
+  }
+
+  Future<Map<String, dynamic>> updateProfile({
+    String? phone,
+    String? addressLine1,
+    String? city,
+    String? state,
+    String? postalCode,
+    String? emergencyContactName,
+    String? emergencyContactPhone,
+  }) async {
+    final data = await _request(
+      () => _dio.patch<Map<String, dynamic>>(
+        ApiEndpoints.patientMe,
+        data: {
+          if (phone != null && phone.isNotEmpty) 'phone': phone,
+          if (addressLine1 != null && addressLine1.isNotEmpty) ...{
+            'addressLine1': addressLine1,
+            'address': addressLine1,
+          },
+          if (city != null && city.isNotEmpty) 'city': city,
+          if (state != null && state.isNotEmpty) 'state': state,
+          if (postalCode != null && postalCode.isNotEmpty) ...{
+            'postalCode': postalCode,
+            'zipCode': postalCode,
+          },
+          if (emergencyContactName != null && emergencyContactName.isNotEmpty)
+            'emergencyContactName': emergencyContactName,
+          if (emergencyContactPhone != null && emergencyContactPhone.isNotEmpty)
+            'emergencyContactPhone': emergencyContactPhone,
+        },
+      ),
+    );
+    return unwrapApiPayload(data);
   }
 
   Future<DashboardModel> getDashboard() async {
@@ -101,7 +144,7 @@ class PatientRemoteDataSource {
           'type': type,
           'date': date,
           'startTime': startTime,
-          if (endTime != null) 'endTime': endTime,
+          'endTime': ?endTime,
           'isVirtual': isVirtual,
         },
       ),
@@ -142,8 +185,8 @@ class PatientRemoteDataSource {
         data: {
           'date': date,
           'startTime': startTime,
-          if (endTime != null) 'endTime': endTime,
-          if (note != null) 'note': note,
+          'endTime': ?endTime,
+          'note': ?note,
         },
       ),
     );
@@ -174,8 +217,8 @@ class PatientRemoteDataSource {
       () => _dio.get<Map<String, dynamic>>(
         ApiEndpoints.patientDoctorAvailability(doctorId),
         queryParameters: {
-          if (from != null) 'from': from,
-          if (days != null) 'days': days,
+          'from': ?from,
+          'days': ?days,
         },
       ),
     );
@@ -275,8 +318,8 @@ class PatientRemoteDataSource {
         queryParameters: {
           'page': page,
           'limit': limit,
-          if (from != null) 'from': from,
-          if (to != null) 'to': to,
+          'from': ?from,
+          'to': ?to,
         },
       ),
     );
@@ -289,26 +332,38 @@ class PatientRemoteDataSource {
   Future<CheckInModel> createCheckIn({
     required int mood,
     required int stress,
-    int? sleep,
-    String? journal,
+    int sleep = 7,
+    String journal = 'Feeling much better today and rested well.',
   }) async {
+    final journalText = journal.trim().isNotEmpty
+        ? journal.trim()
+        : 'Feeling much better today and rested well.';
+    final payload = <String, dynamic>{
+      'mood': mood,
+      'stress': stress,
+      'sleep': sleep,
+      'journal': journalText,
+    };
+
     final data = await _request(
       () => _dio.post<Map<String, dynamic>>(
         ApiEndpoints.patientCheckIns,
-        data: {
-          'mood': mood,
-          'stress': stress,
-          if (sleep != null) 'sleep': sleep,
-          if (journal != null && journal.isNotEmpty) 'journal': journal,
-        },
+        data: jsonEncode(payload),
+        options: Options(
+          contentType: 'application/json',
+          headers: const {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+        ),
       ),
     );
-    final payload = unwrapApiPayload(data);
-    final item = payload['checkIn'] ?? payload['check_in'];
+    final unwrapped = unwrapApiPayload(data);
+    final item = unwrapped['checkIn'] ?? unwrapped['check_in'];
     if (item is Map<String, dynamic>) {
       return CheckInModel.fromJson(item);
     }
-    return CheckInModel.fromJson(payload);
+    return CheckInModel.fromJson(unwrapped);
   }
 
   Future<ProgressModel> getProgress() async {

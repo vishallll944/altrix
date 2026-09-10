@@ -24,9 +24,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  int? _mood;
-  bool _isSavingCheckIn = false;
-
   String get _greeting {
     final hour = DateTime.now().hour;
     if (hour < 12) return 'Good morning';
@@ -52,13 +49,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
   }
 
-  Future<void> _saveCheckIn() async {
-    if (_mood == null || _isSavingCheckIn) return;
-    setState(() => _isSavingCheckIn = true);
+  Future<void> _submitCheckIn({
+    required int mood,
+    required int stress,
+    required int sleep,
+    required String journal,
+  }) async {
     try {
       await ref.read(patientRepositoryProvider).createCheckIn(
-            mood: _mood! * 2,
-            stress: _mood! * 2,
+            mood: mood,
+            stress: stress,
+            sleep: sleep,
+            journal: journal,
           );
       if (!mounted) return;
       _toast('Check-in saved');
@@ -67,9 +69,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     } catch (error) {
       if (!mounted) return;
       _toast(friendlyErrorMessage(error));
-    } finally {
-      if (mounted) setState(() => _isSavingCheckIn = false);
+      rethrow;
     }
+  }
+
+  void _openCheckInSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => _TodaysWellnessSheet(
+        initialMood: 8,
+        initialStress: 3,
+        initialSleep: 7,
+        initialJournal: 'Feeling much better today and rested well.',
+        onSubmit: _submitCheckIn,
+      ),
+    );
   }
 
   @override
@@ -136,7 +152,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     SizedBox(height: responsive.rz(14)),
                     _QuickActions(
-                      onCheckIn: () => _toast('Daily check-in is below'),
+                      onCheckIn: _openCheckInSheet,
                       onMessages: () => widget.onNavigateToTab?.call(2),
                       onForms: () {
                         Navigator.of(context).push(
@@ -147,9 +163,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     SizedBox(height: responsive.rz(22)),
                     _CheckInCard(
-                      selected: _mood,
-                      onSelect: (value) => setState(() => _mood = value),
-                      onSave: _mood == null || _isSavingCheckIn ? null : _saveCheckIn,
+                      onCheckIn: _openCheckInSheet,
                     ),
                     SizedBox(height: responsive.rz(16)),
                     _DashboardSummaryCard(
@@ -1165,14 +1179,10 @@ class _QuickAction extends StatelessWidget {
 
 class _CheckInCard extends StatelessWidget {
   const _CheckInCard({
-    required this.selected,
-    required this.onSelect,
-    required this.onSave,
+    required this.onCheckIn,
   });
 
-  final int? selected;
-  final ValueChanged<int> onSelect;
-  final VoidCallback? onSave;
+  final VoidCallback onCheckIn;
 
   @override
   Widget build(BuildContext context) {
@@ -1208,7 +1218,7 @@ class _CheckInCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'How are you today?',
+                      "Today's Wellness",
                       style: responsiveTextStyle(
                         context,
                         fontSize: 18,
@@ -1229,45 +1239,42 @@ class _CheckInCard extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: responsive.rz(18)),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final moodSize =
-                  ((constraints.maxWidth - 24) / 5).clamp(32.0, 50.0);
-              return Row(
-                children: List.generate(5, (index) {
-                  final level = index + 1;
-                  return Expanded(
-                    child: _MoodButton(
-                      level: level,
-                      size: moodSize,
-                      selected: selected == level,
-                      onTap: () => onSelect(level),
-                    ),
-                  );
-                }),
-              );
-            },
-          ),
-          SizedBox(height: responsive.rz(8)),
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          SizedBox(height: responsive.rz(16)),
+          Row(
             children: [
-              Text(
-                'Struggling',
-                style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+              _CheckInPreviewPill(
+                emoji: '😊',
+                label: 'Mood',
+                color: const Color(0xFF8B5CF6),
+                bgColor: const Color(0xFFF3E8FF),
               ),
-              Text(
-                'Great',
-                style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+              SizedBox(width: responsive.rz(8)),
+              _CheckInPreviewPill(
+                emoji: '😌',
+                label: 'Stress',
+                color: const Color(0xFFF59E0B),
+                bgColor: const Color(0xFFFEF3C7),
+              ),
+              SizedBox(width: responsive.rz(8)),
+              _CheckInPreviewPill(
+                emoji: '😴',
+                label: 'Sleep',
+                color: const Color(0xFF3B82F6),
+                bgColor: const Color(0xFFDBEAFE),
+              ),
+              SizedBox(width: responsive.rz(8)),
+              _CheckInPreviewPill(
+                emoji: '📝',
+                label: 'Journal',
+                color: const Color(0xFF10B981),
+                bgColor: const Color(0xFFD1FAE5),
               ),
             ],
           ),
           SizedBox(height: responsive.rz(16)),
           SoftButton(
-            label: 'Save check-in',
-            enabled: onSave != null,
-            onPressed: onSave,
+            label: 'Check in now',
+            onPressed: onCheckIn,
           ),
         ],
       ),
@@ -1275,57 +1282,40 @@ class _CheckInCard extends StatelessWidget {
   }
 }
 
-class _MoodButton extends StatelessWidget {
-  const _MoodButton({
-    required this.level,
-    required this.size,
-    required this.selected,
-    required this.onTap,
+class _CheckInPreviewPill extends StatelessWidget {
+  const _CheckInPreviewPill({
+    required this.emoji,
+    required this.label,
+    required this.color,
+    required this.bgColor,
   });
 
-  final int level;
-  final double size;
-  final bool selected;
-  final VoidCallback onTap;
+  final String emoji;
+  final String label;
+  final Color color;
+  final Color bgColor;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.all(3),
+    final responsive = context.responsive;
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: responsive.rz(8)),
         decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: selected ? AppColors.primary : Colors.transparent,
-            width: 2.5,
-          ),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.25),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
+          color: bgColor.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
         ),
         child: Column(
           children: [
-            SizedBox(
-              width: size,
-              height: size,
-              child: CustomPaint(painter: _MoodPainter(level: level)),
-            ),
-            const SizedBox(height: 6),
+            Text(emoji, style: TextStyle(fontSize: responsive.rz(16))),
+            SizedBox(height: responsive.rz(2)),
             Text(
-              '$level',
+              label,
               style: TextStyle(
-                fontSize: 12,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                color: selected ? AppColors.primary : AppColors.textSecondary,
+                fontSize: responsive.rz(11),
+                fontWeight: FontWeight.w600,
+                color: color,
               ),
             ),
           ],
@@ -1335,100 +1325,362 @@ class _MoodButton extends StatelessWidget {
   }
 }
 
-class _MoodPainter extends CustomPainter {
-  _MoodPainter({required this.level});
+class _TodaysWellnessSheet extends StatefulWidget {
+  const _TodaysWellnessSheet({
+    required this.initialMood,
+    required this.initialStress,
+    required this.initialSleep,
+    required this.initialJournal,
+    required this.onSubmit,
+  });
 
-  final int level;
+  final int initialMood;
+  final int initialStress;
+  final int initialSleep;
+  final String initialJournal;
+  final Future<void> Function({
+    required int mood,
+    required int stress,
+    required int sleep,
+    required String journal,
+  }) onSubmit;
 
-  Color get _color {
-    switch (level) {
-      case 1:
-        return AppColors.mood1;
-      case 2:
-        return AppColors.mood2;
-      case 3:
-        return AppColors.mood3;
-      case 4:
-        return AppColors.mood4;
-      default:
-        return AppColors.mood5;
+  @override
+  State<_TodaysWellnessSheet> createState() => _TodaysWellnessSheetState();
+}
+
+class _TodaysWellnessSheetState extends State<_TodaysWellnessSheet> {
+  late int _mood;
+  late int _stress;
+  late int _sleep;
+  late final TextEditingController _journalController;
+  bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _mood = widget.initialMood;
+    _stress = widget.initialStress;
+    _sleep = widget.initialSleep;
+    _journalController = TextEditingController(text: widget.initialJournal);
+  }
+
+  @override
+  void dispose() {
+    _journalController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleSubmit() async {
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
+    try {
+      final journalText = _journalController.text.trim().isNotEmpty
+          ? _journalController.text.trim()
+          : 'Feeling much better today and rested well.';
+      await widget.onSubmit(
+        mood: _mood,
+        stress: _stress,
+        sleep: _sleep,
+        journal: journalText,
+      );
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
     }
   }
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
-    canvas.drawCircle(center, radius, Paint()..color = _color);
+  Widget build(BuildContext context) {
+    final responsive = context.responsive;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
-    final eye = Paint()..color = const Color(0xFF3D2A1A);
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(size.width * 0.35, size.height * 0.40),
-        width: 4.2,
-        height: 5.4,
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.90,
       ),
-      eye,
-    );
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(size.width * 0.65, size.height * 0.40),
-        width: 4.2,
-        height: 5.4,
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x2A000000),
+            blurRadius: 24,
+            offset: Offset(0, -4),
+          ),
+        ],
       ),
-      eye,
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(20, 12, 20, bottomInset + 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 42,
+                  height: 4.5,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+              SizedBox(height: responsive.rz(16)),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Today's Wellness",
+                          style: responsiveTextStyle(
+                            context,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        SizedBox(height: responsive.rz(2)),
+                        Text(
+                          'Track how you feel today',
+                          style: responsiveTextStyle(
+                            context,
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded),
+                    color: AppColors.textTertiary,
+                  ),
+                ],
+              ),
+              SizedBox(height: responsive.rz(18)),
+              _WellnessSliderTile(
+                emoji: '😊',
+                label: 'Mood',
+                valueText: '$_mood/10',
+                value: _mood.toDouble(),
+                min: 1,
+                max: 10,
+                divisions: 9,
+                activeColor: const Color(0xFF8B5CF6),
+                badgeBgColor: const Color(0xFFF3E8FF),
+                badgeTextColor: const Color(0xFF7C3AED),
+                onChanged: (val) => setState(() => _mood = val.round()),
+              ),
+              SizedBox(height: responsive.rz(14)),
+              _WellnessSliderTile(
+                emoji: '😌',
+                label: 'Stress',
+                valueText: '$_stress/10',
+                value: _stress.toDouble(),
+                min: 1,
+                max: 10,
+                divisions: 9,
+                activeColor: const Color(0xFFF59E0B),
+                badgeBgColor: const Color(0xFFFEF3C7),
+                badgeTextColor: const Color(0xFFD97706),
+                onChanged: (val) => setState(() => _stress = val.round()),
+              ),
+              SizedBox(height: responsive.rz(14)),
+              _WellnessSliderTile(
+                emoji: '😴',
+                label: 'Sleep',
+                valueText: '$_sleep hrs',
+                value: _sleep.toDouble(),
+                min: 1,
+                max: 14,
+                divisions: 13,
+                activeColor: const Color(0xFF3B82F6),
+                badgeBgColor: const Color(0xFFDBEAFE),
+                badgeTextColor: const Color(0xFF2563EB),
+                onChanged: (val) => setState(() => _sleep = val.round()),
+              ),
+              SizedBox(height: responsive.rz(18)),
+              Text(
+                '📝 Journal',
+                style: responsiveTextStyle(
+                  context,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              SizedBox(height: responsive.rz(8)),
+              TextField(
+                controller: _journalController,
+                maxLines: 3,
+                style: responsiveTextStyle(
+                  context,
+                  fontSize: 14,
+                  color: AppColors.textPrimary,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Write your journal notes here...',
+                  hintStyle: const TextStyle(color: AppColors.textTertiary),
+                  filled: true,
+                  fillColor: AppColors.background,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(
+                      color: AppColors.primary,
+                      width: 1.6,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: responsive.rz(22)),
+              PrimaryButton(
+                label: 'Submit',
+                loading: _isSubmitting,
+                onPressed: _handleSubmit,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
-
-    final mouth = Paint()
-      ..color = const Color(0xFF3D2A1A)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
-
-    final path = Path();
-    switch (level) {
-      case 1:
-        path.moveTo(size.width * 0.30, size.height * 0.72);
-        path.quadraticBezierTo(
-          size.width * 0.50,
-          size.height * 0.58,
-          size.width * 0.70,
-          size.height * 0.72,
-        );
-      case 2:
-        path.moveTo(size.width * 0.30, size.height * 0.70);
-        path.quadraticBezierTo(
-          size.width * 0.50,
-          size.height * 0.62,
-          size.width * 0.70,
-          size.height * 0.70,
-        );
-      case 3:
-        path.moveTo(size.width * 0.32, size.height * 0.68);
-        path.lineTo(size.width * 0.68, size.height * 0.68);
-      case 4:
-        path.moveTo(size.width * 0.30, size.height * 0.64);
-        path.quadraticBezierTo(
-          size.width * 0.50,
-          size.height * 0.78,
-          size.width * 0.70,
-          size.height * 0.64,
-        );
-      default:
-        path.moveTo(size.width * 0.28, size.height * 0.62);
-        path.quadraticBezierTo(
-          size.width * 0.50,
-          size.height * 0.84,
-          size.width * 0.72,
-          size.height * 0.62,
-        );
-    }
-    canvas.drawPath(path, mouth);
   }
+}
+
+class _WellnessSliderTile extends StatelessWidget {
+  const _WellnessSliderTile({
+    required this.emoji,
+    required this.label,
+    required this.valueText,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.divisions,
+    required this.activeColor,
+    required this.badgeBgColor,
+    required this.badgeTextColor,
+    required this.onChanged,
+  });
+
+  final String emoji;
+  final String label;
+  final String valueText;
+  final double value;
+  final double min;
+  final double max;
+  final int divisions;
+  final Color activeColor;
+  final Color badgeBgColor;
+  final Color badgeTextColor;
+  final ValueChanged<double> onChanged;
 
   @override
-  bool shouldRepaint(covariant _MoodPainter oldDelegate) =>
-      oldDelegate.level != level;
+  Widget build(BuildContext context) {
+    final responsive = context.responsive;
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: responsive.rz(14),
+        vertical: responsive.rz(12),
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: AppColors.border.withValues(alpha: 0.6),
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    emoji,
+                    style: TextStyle(fontSize: responsive.rz(18)),
+                  ),
+                  SizedBox(width: responsive.rz(8)),
+                  Text(
+                    label,
+                    style: responsiveTextStyle(
+                      context,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: responsive.rz(10),
+                  vertical: responsive.rz(4),
+                ),
+                decoration: BoxDecoration(
+                  color: badgeBgColor,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  valueText,
+                  style: TextStyle(
+                    fontSize: responsive.rz(13),
+                    fontWeight: FontWeight.w700,
+                    color: badgeTextColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: responsive.rz(4)),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 10,
+              trackShape: const RoundedRectSliderTrackShape(),
+              activeTrackColor: activeColor,
+              inactiveTrackColor: activeColor.withValues(alpha: 0.15),
+              thumbColor: Colors.white,
+              thumbShape: const RoundSliderThumbShape(
+                enabledThumbRadius: 10,
+                elevation: 3,
+              ),
+              overlayColor: activeColor.withValues(alpha: 0.15),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
+            ),
+            child: Slider(
+              value: value,
+              min: min,
+              max: max,
+              divisions: divisions,
+              onChanged: onChanged,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _DashboardSummaryCard extends StatelessWidget {
@@ -1446,19 +1698,18 @@ class _DashboardSummaryCard extends StatelessWidget {
 
     return _SurfaceCard(
       child: dashboardAsync.when(
-        loading: () => const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _SectionHeader(
-              title: 'Your dashboard',
-              subtitle: 'Wellness overview from your care team',
+        loading: () => const Center(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: SizedBox(
+              width: 26,
+              height: 26,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: AppColors.primary,
+              ),
             ),
-            SizedBox(height: 12),
-            Text(
-              'Loading dashboard...',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-          ],
+          ),
         ),
         error: (error, _) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2046,9 +2297,18 @@ class _ProgressCard extends StatelessWidget {
           ),
           SizedBox(height: responsive.rz(14)),
           progressAsync.when(
-            loading: () => const Text(
-              'Loading progress...',
-              style: TextStyle(color: AppColors.textSecondary),
+            loading: () => const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
             ),
             error: (error, _) => InlineErrorCard(
               message: friendlyErrorMessage(error),
