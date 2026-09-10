@@ -9,11 +9,24 @@ class AuthInterceptor extends Interceptor {
 
   final String? Function() _readToken;
 
+  static const _publicEndpoints = [
+    '/api/patient/login',
+    '/api/patient/invite/preview',
+    '/api/patient/invite/accept',
+    '/api/patient/forgot-password',
+    '/api/patient/reset-password',
+  ];
+
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    final token = _readToken();
-    if (token != null && token.isNotEmpty) {
-      options.headers['Authorization'] = 'Bearer $token';
+    final isPublic = _publicEndpoints.any((e) => options.path.contains(e));
+    if (!isPublic) {
+      final token = _readToken();
+      if (token != null && token.isNotEmpty) {
+        options.headers['Authorization'] = 'Bearer $token';
+      }
+    } else {
+      options.headers.remove('Authorization');
     }
     options.contentType ??= 'application/json';
     options.headers['Content-Type'] ??= 'application/json';

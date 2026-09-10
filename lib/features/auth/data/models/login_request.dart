@@ -8,8 +8,10 @@ class LoginRequest {
   final String password;
 
   Map<String, dynamic> toJson() {
+    final trimmed = email.trim();
     return {
-      'email': email,
+      'email': trimmed,
+      'mail': trimmed,
       'password': password,
     };
   }

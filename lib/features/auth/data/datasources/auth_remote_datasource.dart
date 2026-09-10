@@ -56,10 +56,11 @@ class AuthRemoteDataSource {
 
   /// 2. POST /api/patient/invite/accept
   Future<void> acceptInvite(InviteAcceptRequest request) async {
+    final rawBody = jsonEncode(request.toJson());
     await _request(
       () => _dio.post<Map<String, dynamic>>(
         ApiEndpoints.patientInviteAccept,
-        data: jsonEncode(request.toJson()),
+        data: rawBody,
         options: Options(
           contentType: 'application/json',
           headers: const {
@@ -72,11 +73,14 @@ class AuthRemoteDataSource {
   }
 
   /// 3. POST /api/patient/login
+  /// Sends raw JSON body: {"email":"...","mail":"...","password":"..."}
   Future<LoginResponse> login(LoginRequest request) async {
+    final rawBody = jsonEncode(request.toJson());
+
     final data = await _request(
       () => _dio.post<Map<String, dynamic>>(
         ApiEndpoints.patientLogin,
-        data: jsonEncode(request.toJson()),
+        data: rawBody,
         options: Options(
           contentType: 'application/json',
           headers: const {
@@ -91,10 +95,11 @@ class AuthRemoteDataSource {
 
   /// 4. POST /api/patient/forgot-password
   Future<void> forgotPassword(String email) async {
+    final rawBody = jsonEncode({'email': email.trim()});
     await _request(
       () => _dio.post<Map<String, dynamic>>(
         ApiEndpoints.patientForgotPassword,
-        data: jsonEncode({'email': email}),
+        data: rawBody,
         options: Options(
           contentType: 'application/json',
           headers: const {
@@ -111,13 +116,14 @@ class AuthRemoteDataSource {
     required String token,
     required String password,
   }) async {
+    final rawBody = jsonEncode({
+      'token': token,
+      'password': password,
+    });
     await _request(
       () => _dio.post<Map<String, dynamic>>(
         ApiEndpoints.patientResetPassword,
-        data: jsonEncode({
-          'token': token,
-          'password': password,
-        }),
+        data: rawBody,
         options: Options(
           contentType: 'application/json',
           headers: const {
@@ -146,10 +152,11 @@ class AuthRemoteDataSource {
 
   /// 7. PATCH /api/patient/me
   Future<ProfileResponse> updateProfile(UpdateProfileRequest request) async {
+    final rawBody = jsonEncode(request.toJson());
     final data = await _request(
       () => _dio.patch<Map<String, dynamic>>(
         ApiEndpoints.patientMe,
-        data: jsonEncode(request.toJson()),
+        data: rawBody,
         options: Options(
           contentType: 'application/json',
           headers: const {

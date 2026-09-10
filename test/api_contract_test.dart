@@ -4,6 +4,8 @@ import 'package:altrix/core/network/api_exception.dart';
 import 'package:altrix/core/network/api_response.dart';
 import 'package:altrix/features/auth/data/models/client_model.dart';
 import 'package:dio/dio.dart';
+import 'package:altrix/features/auth/data/datasources/auth_remote_datasource.dart';
+import 'package:altrix/features/auth/data/models/login_request.dart';
 import 'package:altrix/features/auth/data/models/update_profile_request.dart';
 import 'package:altrix/features/patient/data/datasources/patient_remote_datasource.dart';
 import 'package:altrix/features/patient/data/models/patient_models.dart';
@@ -182,6 +184,55 @@ void main() {
       );
       final body = await dio.transformer.transformRequest(options);
       expect(body, '{"email":"user@example.com","password":"secret"}');
+    });
+
+    test('verifies AuthRemoteDataSource.login sends data in body in raw JSON form', () async {
+      RequestOptions? captured;
+      final dio = Dio();
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            captured = options;
+            return handler.resolve(
+              Response(
+                requestOptions: options,
+                statusCode: 200,
+                data: {
+                  'success': true,
+                  'data': {
+                    'token': 'jwt_token_123',
+                    'client': {
+                      'id': 'patient_1',
+                      'name': 'Test Patient',
+                      'email': 'patient@example.com',
+                    },
+                  },
+                },
+              ),
+            );
+          },
+        ),
+      );
+
+      final authSource = AuthRemoteDataSource(dio);
+      final response = await authSource.login(
+        const LoginRequest(
+          email: 'patient@example.com',
+          password: 'YourPassword123',
+        ),
+      );
+
+      expect(response.token, 'jwt_token_123');
+      expect(captured, isNotNull);
+      expect(captured!.path, '/api/patient/login');
+      expect(captured!.method, 'POST');
+      // Body is sent as raw JSON string:
+      expect(captured!.data, isA<String>());
+      expect(
+        captured!.data,
+        '{"email":"patient@example.com","mail":"patient@example.com","password":"YourPassword123"}',
+      );
+      expect(captured!.contentType, 'application/json');
     });
   });
 
