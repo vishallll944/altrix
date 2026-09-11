@@ -106,12 +106,19 @@ class PatientRepository {
   Future<void> markMessageRead(String messageId) => _remote.markMessageRead(messageId);
 
   Future<List<CheckInModel>> getCheckIns({
-    int page = 1,
+    int? page,
     int limit = 20,
+    int? skip,
     String? from,
     String? to,
   }) =>
-      _remote.getCheckIns(page: page, limit: limit, from: from, to: to);
+      _remote.getCheckIns(
+        page: page,
+        limit: limit,
+        skip: skip,
+        from: from,
+        to: to,
+      );
 
   Future<CheckInModel> createCheckIn({
     required int mood,
@@ -151,4 +158,17 @@ class PatientRepository {
       _remote.getForms(page: page, limit: limit);
 
   Future<PatientFormModel> getForm(String id) => _remote.getForm(id);
+
+  Future<void> logout() => _remote.logout();
+
+  Future<void> deleteAccount() => _remote.deleteAccount();
+
+  Future<String?> uploadAvatar(String filePath) => _remote.uploadAvatar(filePath);
+
+  Stream<Map<String, dynamic>> streamLiveMessages({
+    required String threadId,
+    required String token,
+  }) =>
+      _remote.streamLiveMessages(threadId: threadId, token: token);
 }
+

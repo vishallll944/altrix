@@ -36,4 +36,10 @@ abstract class AuthRepository {
     required String token,
     required String password,
   });
+
+  Future<void> signOut();
+
+  Future<void> deleteAccount();
+
+  Future<String?> uploadAvatar(String filePath);
 }

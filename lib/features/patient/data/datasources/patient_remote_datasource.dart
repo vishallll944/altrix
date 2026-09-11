@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 
 import '../../../../core/config/env.dart';
@@ -305,20 +308,23 @@ class PatientRemoteDataSource {
   }
 
   Future<List<CheckInModel>> getCheckIns({
-    int page = 1,
+    int? page,
     int limit = 20,
+    int? skip,
     String? from,
     String? to,
   }) async {
+    final queryParams = <String, dynamic>{
+      'limit': limit,
+      if (skip != null) 'skip': skip,
+      if (page != null && skip == null) 'page': page,
+      if (from != null) 'from': from,
+      if (to != null) 'to': to,
+    };
     final data = await _request(
       () => _dio.get<Map<String, dynamic>>(
         ApiEndpoints.patientCheckIns,
-        queryParameters: {
-          'page': page,
-          'limit': limit,
-          'from': ?from,
-          'to': ?to,
-        },
+        queryParameters: queryParams,
       ),
     );
     final payload = unwrapApiPayload(data);
@@ -445,5 +451,87 @@ class PatientRemoteDataSource {
       return PatientFormModel.fromJson(form);
     }
     return PatientFormModel.fromJson(payload);
+  }
+
+  /// POST /api/patient/logout
+  Future<void> logout() async {
+    await _request(
+      () => _dio.post<Map<String, dynamic>>(
+        ApiEndpoints.patientLogout,
+        data: const {},
+      ),
+    );
+  }
+
+  /// DELETE /api/patient/me
+  Future<void> deleteAccount() async {
+    await _request(
+      () => _dio.delete<Map<String, dynamic>>(
+        ApiEndpoints.patientMe,
+      ),
+    );
+  }
+
+  /// POST /api/patient/avatar (Multipart)
+  Future<String?> uploadAvatar(String filePath) async {
+    _ensureApiConfigured();
+    final formData = FormData.fromMap({
+      'avatar': await MultipartFile.fromFile(
+        filePath,
+        filename: filePath.split('/').last,
+      ),
+    });
+
+    final data = await _request(
+      () => _dio.post<Map<String, dynamic>>(
+        ApiEndpoints.patientAvatar,
+        data: formData,
+        options: Options(
+          contentType: 'multipart/form-data',
+        ),
+      ),
+    );
+
+    final payload = unwrapApiPayload(data);
+    return payload['avatarUrl'] as String? ?? payload['avatar'] as String?;
+  }
+
+  /// Real-Time Live Message Stream (SSE)
+  /// GET /api/patient/conversations/<THREAD_ID>/stream
+  Stream<Map<String, dynamic>> streamLiveMessages({
+    required String threadId,
+    required String token,
+  }) async* {
+    _ensureApiConfigured();
+    final client = HttpClient();
+    client.badCertificateCallback = (cert, host, port) => true;
+
+    try {
+      final uri = Uri.parse(
+        '${Env.apiBaseUrl}${ApiEndpoints.patientConversationStream(threadId)}',
+      );
+      final request = await client.getUrl(uri);
+      request.headers.set('Authorization', 'Bearer $token');
+      request.headers.set('Accept', 'text/event-stream');
+      final response = await request.close();
+
+      await for (final line in response
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())) {
+        if (line.startsWith('data: ')) {
+          final jsonStr = line.substring(6).trim();
+          if (jsonStr.isNotEmpty) {
+            try {
+              final payload = jsonDecode(jsonStr);
+              if (payload is Map<String, dynamic>) {
+                yield payload;
+              }
+            } catch (_) {}
+          }
+        }
+      }
+    } finally {
+      client.close(force: true);
+    }
   }
 }

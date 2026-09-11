@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/auth/presentation/providers/auth_provider.dart';
+import '../features/auth/presentation/providers/auth_providers.dart';
+import '../features/auth/presentation/providers/auth_token_provider.dart';
 import '../features/patient/data/models/patient_models.dart';
 import '../features/patient/presentation/providers/patient_providers.dart';
 import '../theme/app_colors.dart';
@@ -37,6 +39,7 @@ class ConversationDetailScreenState extends ConsumerState<ConversationDetailScre
   bool _isLoading = true;
   String? _error;
   Timer? _liveChatTimer;
+  StreamSubscription<Map<String, dynamic>>? _sseSubscription;
   bool _isSending = false;
 
   @override
@@ -48,6 +51,7 @@ class ConversationDetailScreenState extends ConsumerState<ConversationDetailScre
 
   @override
   void dispose() {
+    _sseSubscription?.cancel();
     _liveChatTimer?.cancel();
     _controller.dispose();
     _scrollController.dispose();
@@ -55,10 +59,65 @@ class ConversationDetailScreenState extends ConsumerState<ConversationDetailScre
     super.dispose();
   }
 
-  void _startLiveChatSync() {
+  void _startLiveChatSync() async {
+    _sseSubscription?.cancel();
     _liveChatTimer?.cancel();
-    // Realtime polling every 2.5 seconds for instant synchronization between both users
-    _liveChatTimer = Timer.periodic(const Duration(milliseconds: 2500), (_) {
+
+    // 1. Real-Time Live Message Stream (SSE) for instant (<50ms) message arrival
+    String? token;
+    try {
+      token = ref.read(authTokenProvider);
+      if (token == null || token.isEmpty) {
+        token = await ref.read(authSessionStorageProvider).readToken();
+      }
+    } catch (_) {
+      // In test environments where storage provider is not overridden
+      token = null;
+    }
+
+    if (token != null && token.isNotEmpty) {
+      try {
+        _sseSubscription = ref
+            .read(patientRepositoryProvider)
+            .streamLiveMessages(
+              threadId: widget.conversationId,
+              token: token,
+            )
+            .listen(
+              (payload) {
+                if (!mounted) return;
+                final messageMap = payload['message'] is Map<String, dynamic>
+                    ? payload['message'] as Map<String, dynamic>
+                    : (payload['data'] is Map<String, dynamic>
+                        ? payload['data'] as Map<String, dynamic>
+                        : payload);
+                if (messageMap['id'] != null) {
+                  final incoming = MessageModel.fromJson(messageMap);
+                  _mergeLiveMessages([incoming]);
+                }
+              },
+              onError: (err) {
+                debugPrint('[SSE] Stream error, falling back to polling: $err');
+                _startPollingFallback();
+              },
+              onDone: () {
+                _startPollingFallback();
+              },
+              cancelOnError: false,
+            );
+      } catch (err) {
+        debugPrint('[SSE] Error setting up stream: $err');
+        _startPollingFallback();
+      }
+    }
+
+    // Secondary periodic poll (every 5 seconds) as fallback/resilience mechanism
+    _startPollingFallback();
+  }
+
+  void _startPollingFallback() {
+    if (_liveChatTimer != null && _liveChatTimer!.isActive) return;
+    _liveChatTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (!mounted) return;
       _pollLiveMessages();
     });

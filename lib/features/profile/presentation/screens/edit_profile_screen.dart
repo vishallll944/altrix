@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/responsive/responsive.dart';
 import '../../../../core/responsive/responsive_widgets.dart';
@@ -26,6 +27,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _emergencyPhoneController = TextEditingController();
   AutovalidateMode _autovalidateMode = AutovalidateMode.disabled;
   bool _saving = false;
+  bool _uploadingAvatar = false;
 
   @override
   void initState() {
@@ -50,6 +52,191 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _emergencyNameController.dispose();
     _emergencyPhoneController.dispose();
     super.dispose();
+  }
+
+  String _initials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty || parts.first.isEmpty) return '?';
+    if (parts.length == 1) return parts.first[0].toUpperCase();
+    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+  }
+
+  void _showImageSourcePicker() {
+    final responsive = context.responsive;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: EdgeInsets.fromLTRB(
+          responsive.rz(20),
+          responsive.rz(24),
+          responsive.rz(20),
+          responsive.rz(28),
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(responsive.rz(24)),
+          ),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Change Profile Photo',
+                style: responsiveTextStyle(
+                  context,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              SizedBox(height: responsive.rz(6)),
+              Text(
+                'Upload a photo from your gallery or take a new one with your camera.',
+                style: responsiveTextStyle(
+                  context,
+                  fontSize: 13.5,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              SizedBox(height: responsive.rz(20)),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: responsive.rz(44),
+                  height: responsive.rz(44),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryWash,
+                    borderRadius: BorderRadius.circular(responsive.rz(12)),
+                  ),
+                  child: Icon(
+                    Icons.photo_library_rounded,
+                    color: AppColors.primary,
+                    size: responsive.rz(22),
+                  ),
+                ),
+                title: Text(
+                  'Choose from Gallery',
+                  style: responsiveTextStyle(
+                    context,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                subtitle: Text(
+                  'Select an existing image from your device',
+                  style: responsiveTextStyle(
+                    context,
+                    fontSize: 12.5,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _pickAndUploadImage(ImageSource.gallery);
+                },
+              ),
+              SizedBox(height: responsive.rz(8)),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: responsive.rz(44),
+                  height: responsive.rz(44),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryWash,
+                    borderRadius: BorderRadius.circular(responsive.rz(12)),
+                  ),
+                  child: Icon(
+                    Icons.camera_alt_rounded,
+                    color: AppColors.primary,
+                    size: responsive.rz(22),
+                  ),
+                ),
+                title: Text(
+                  'Take a Photo',
+                  style: responsiveTextStyle(
+                    context,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                subtitle: Text(
+                  'Use your camera to capture a new photo',
+                  style: responsiveTextStyle(
+                    context,
+                    fontSize: 12.5,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _pickAndUploadImage(ImageSource.camera);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndUploadImage(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (pickedFile == null) return;
+
+      setState(() => _uploadingAvatar = true);
+
+      final success = await ref
+          .read(authProvider.notifier)
+          .uploadAvatar(pickedFile.path);
+
+      if (!mounted) return;
+      setState(() => _uploadingAvatar = false);
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile photo updated successfully!'),
+            backgroundColor: Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        final error = ref.read(authProvider).error;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error ?? 'Failed to upload photo'),
+            backgroundColor: AppColors.badge,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (err) {
+      if (!mounted) return;
+      setState(() => _uploadingAvatar = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error choosing image: $err'),
+          backgroundColor: AppColors.badge,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   void _enableInteractionValidation() {
@@ -175,8 +362,111 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     color: AppColors.textSecondary,
                   ),
                 ),
+                SizedBox(height: responsive.rz(20)),
+                // Profile Avatar Photo Section with Camera / Gallery Picker
+                Center(
+                  child: Column(
+                    children: [
+                      Stack(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF9B93F8), AppColors.primary],
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(alpha: 0.25),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: CircleAvatar(
+                              radius: responsive.rz(46),
+                              backgroundColor: AppColors.primary,
+                              backgroundImage: (user?.avatarUrl.isNotEmpty ?? false)
+                                  ? NetworkImage(user!.avatarUrl)
+                                  : null,
+                              child: (user?.avatarUrl.isNotEmpty ?? false)
+                                  ? null
+                                  : Text(
+                                      _initials(user?.name ?? 'Patient'),
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: responsive.rz(28),
+                                      ),
+                                    ),
+                            ),
+                          ),
+                          if (_uploadingAvatar)
+                            Positioned.fill(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.black.withValues(alpha: 0.45),
+                                ),
+                                child: const Center(
+                                  child: SizedBox(
+                                    width: 28,
+                                    height: 28,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Material(
+                              color: AppColors.primary,
+                              shape: const CircleBorder(),
+                              elevation: 4,
+                              child: InkWell(
+                                onTap: _uploadingAvatar ? null : _showImageSourcePicker,
+                                customBorder: const CircleBorder(),
+                                child: Container(
+                                  padding: EdgeInsets.all(responsive.rz(9)),
+                                  child: Icon(
+                                    Icons.camera_alt_rounded,
+                                    color: Colors.white,
+                                    size: responsive.rz(18),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: responsive.rz(8)),
+                      TextButton.icon(
+                        onPressed: _uploadingAvatar ? null : _showImageSourcePicker,
+                        icon: Icon(
+                          Icons.photo_camera_outlined,
+                          size: responsive.rz(16),
+                          color: AppColors.primary,
+                        ),
+                        label: Text(
+                          _uploadingAvatar ? 'Uploading photo...' : 'Change profile photo',
+                          style: responsiveTextStyle(
+                            context,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 if (user != null) ...[
-                  SizedBox(height: responsive.rz(20)),
+                  SizedBox(height: responsive.rz(12)),
                   Container(
                     width: double.infinity,
                     padding: EdgeInsets.all(responsive.rz(16)),

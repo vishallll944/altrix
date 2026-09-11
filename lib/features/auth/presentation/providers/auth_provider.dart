@@ -242,7 +242,52 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> signOut() async {
-    await _clearSession();
+    try {
+      await ref.read(authRepositoryProvider).signOut();
+    } catch (e) {
+      debugPrint('[Auth] Remote signOut failed (session will still clear): $e');
+    } finally {
+      await _clearSession();
+    }
+  }
+
+  Future<bool> deleteAccount() async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      await ref.read(authRepositoryProvider).deleteAccount();
+      await _clearSession();
+      return true;
+    } on ApiException catch (error) {
+      state = state.copyWith(isLoading: false, error: error.message);
+      return false;
+    } catch (_) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to delete account. Please try again.',
+      );
+      return false;
+    }
+  }
+
+  Future<bool> uploadAvatar(String filePath) async {
+    try {
+      final avatarUrl = await ref.read(authRepositoryProvider).uploadAvatar(filePath);
+      if (state.user != null && avatarUrl != null) {
+        // Update user entity avatarUrl
+        state = state.copyWith(
+          user: state.user!.copyWith(avatarUrl: avatarUrl),
+          clearError: true,
+        );
+      }
+      await refreshProfile();
+      return true;
+    } on ApiException catch (error) {
+      state = state.copyWith(error: error.message);
+      return false;
+    } catch (_) {
+      state = state.copyWith(error: 'Failed to upload avatar. Please try again.');
+      return false;
+    }
   }
 }
 

@@ -168,5 +168,48 @@ class AuthRemoteDataSource {
     );
     return ProfileResponse.fromJson(data);
   }
+
+  /// 8. POST /api/patient/logout
+  Future<void> logout() async {
+    await _request(
+      () => _dio.post<Map<String, dynamic>>(
+        ApiEndpoints.patientLogout,
+        data: const {},
+      ),
+    );
+  }
+
+  /// 9. DELETE /api/patient/me
+  Future<void> deleteAccount() async {
+    await _request(
+      () => _dio.delete<Map<String, dynamic>>(
+        ApiEndpoints.patientMe,
+      ),
+    );
+  }
+
+  /// 10. POST /api/patient/avatar (Multipart)
+  Future<String?> uploadAvatar(String filePath) async {
+    _ensureApiConfigured();
+    final formData = FormData.fromMap({
+      'avatar': await MultipartFile.fromFile(
+        filePath,
+        filename: filePath.split('/').last,
+      ),
+    });
+
+    final data = await _request(
+      () => _dio.post<Map<String, dynamic>>(
+        ApiEndpoints.patientAvatar,
+        data: formData,
+        options: Options(
+          contentType: 'multipart/form-data',
+        ),
+      ),
+    );
+
+    final payload = unwrapApiPayload(data);
+    return payload['avatarUrl'] as String? ?? payload['avatar'] as String?;
+  }
 }
 

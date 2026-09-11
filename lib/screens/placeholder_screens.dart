@@ -1599,6 +1599,68 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
   }
 
+  Future<void> _confirmDeleteAccount(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppColors.badge, size: 26),
+            SizedBox(width: 8),
+            Text(
+              'Delete Account',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to permanently delete your account? All medical check-ins, appointments, messages, and profile data will be permanently removed. This cannot be undone.',
+          style: TextStyle(fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.badge,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text(
+              'Delete Account',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      final success = await ref.read(authProvider.notifier).deleteAccount();
+      if (!context.mounted) return;
+      if (success) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const SignInScreen()),
+          (_) => false,
+        );
+      } else {
+        final error = ref.read(authProvider).error;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error ?? 'Failed to delete account'),
+            backgroundColor: AppColors.badge,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final responsive = context.responsive;
@@ -1635,6 +1697,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     email: email,
                     phone: phone,
                     initials: _initials(displayName),
+                    avatarUrl: user?.avatarUrl ?? '',
                   ),
                   SizedBox(height: responsive.rz(22)),
                   _ProfileSectionTitle(title: 'Account'),
@@ -1687,6 +1750,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         (_) => false,
                       );
                     },
+                  ),
+                  SizedBox(height: responsive.rz(14)),
+                  _DeleteAccountButton(
+                    onPressed: () => _confirmDeleteAccount(context),
                   ),
                   SizedBox(height: responsive.rz(16)),
                   Center(
@@ -1774,12 +1841,14 @@ class _ProfileHeroCard extends StatelessWidget {
     required this.email,
     required this.phone,
     required this.initials,
+    this.avatarUrl = '',
   });
 
   final String displayName;
   final String email;
   final String phone;
   final String initials;
+  final String avatarUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -1885,14 +1954,19 @@ class _ProfileHeroCard extends StatelessWidget {
                     child: CircleAvatar(
                       radius: responsive.rz(38),
                       backgroundColor: AppColors.primary,
-                      child: Text(
-                        initials,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: responsive.rz(26),
-                        ),
-                      ),
+                      backgroundImage: avatarUrl.isNotEmpty
+                          ? NetworkImage(avatarUrl)
+                          : null,
+                      child: avatarUrl.isNotEmpty
+                          ? null
+                          : Text(
+                              initials,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: responsive.rz(26),
+                              ),
+                            ),
                     ),
                   ),
                   SizedBox(height: responsive.rz(12)),
@@ -2147,6 +2221,43 @@ class _SignOutButton extends StatelessWidget {
           style: TextStyle(
             fontSize: responsive.rz(16),
             fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DeleteAccountButton extends StatelessWidget {
+  const _DeleteAccountButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final responsive = context.responsive;
+
+    return Center(
+      child: TextButton.icon(
+        onPressed: onPressed,
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.badge.withValues(alpha: 0.85),
+          padding: EdgeInsets.symmetric(
+            horizontal: responsive.rz(16),
+            vertical: responsive.rz(8),
+          ),
+        ),
+        icon: Icon(
+          Icons.delete_outline_rounded,
+          size: responsive.rz(18),
+          color: AppColors.badge.withValues(alpha: 0.85),
+        ),
+        label: Text(
+          'Delete account',
+          style: TextStyle(
+            fontSize: responsive.rz(13.5),
+            fontWeight: FontWeight.w600,
+            color: AppColors.badge.withValues(alpha: 0.85),
           ),
         ),
       ),

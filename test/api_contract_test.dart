@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:altrix/core/network/api_endpoints.dart';
 import 'package:altrix/core/network/api_exception.dart';
 import 'package:altrix/core/network/api_response.dart';
 import 'package:altrix/features/auth/data/models/client_model.dart';
@@ -294,5 +295,148 @@ void main() {
         'journal': 'Feeling much better today and rested well.',
       });
     });
+
+    test('getCheckIns supports limit and skip query parameters', () async {
+      RequestOptions? capturedOptions;
+      final dio = Dio(BaseOptions(baseUrl: 'https://altrixs.com'));
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            capturedOptions = options;
+            return handler.resolve(
+              Response(
+                requestOptions: options,
+                statusCode: 200,
+                data: {
+                  'success': true,
+                  'data': {
+                    'checkIns': [
+                      {
+                        'id': 'chk_1',
+                        'mood': 8,
+                        'stress': 2,
+                        'sleep': 8,
+                        'journal': 'Great day',
+                        'createdAt': '2026-09-10T12:00:00Z',
+                      }
+                    ],
+                  },
+                },
+              ),
+            );
+          },
+        ),
+      );
+
+      final dataSource = PatientRemoteDataSource(dio);
+      final checkIns = await dataSource.getCheckIns(limit: 10, skip: 0);
+
+      expect(checkIns.length, 1);
+      expect(checkIns.first.id, 'chk_1');
+      expect(capturedOptions, isNotNull);
+      expect(capturedOptions!.path, '/api/patient/check-ins');
+      expect(capturedOptions!.queryParameters['limit'], 10);
+      expect(capturedOptions!.queryParameters['skip'], 0);
+    });
+  });
+
+  group('Patient API Endpoints & Auth Contracts', () {
+    test('ApiEndpoints match API specification exactly', () {
+      expect(ApiEndpoints.patientLogin, '/api/patient/login');
+      expect(ApiEndpoints.patientLogout, '/api/patient/logout');
+      expect(ApiEndpoints.patientInviteAccept, '/api/patient/invite/accept');
+      expect(ApiEndpoints.patientForgotPassword, '/api/patient/forgot-password');
+      expect(ApiEndpoints.patientResetPassword, '/api/patient/reset-password');
+      expect(ApiEndpoints.patientMe, '/api/patient/me');
+      expect(ApiEndpoints.patientAvatar, '/api/patient/avatar');
+      expect(ApiEndpoints.patientDashboard, '/api/patient/dashboard');
+      expect(ApiEndpoints.patientProgress, '/api/patient/progress');
+      expect(ApiEndpoints.patientCheckIns, '/api/patient/check-ins');
+      expect(ApiEndpoints.patientDoctors, '/api/patient/doctors');
+      expect(ApiEndpoints.patientDoctorAvailability('doc123'), '/api/patient/doctors/doc123/availability');
+      expect(ApiEndpoints.patientAppointments, '/api/patient/appointments');
+      expect(ApiEndpoints.patientAppointmentReschedule('apt123'), '/api/patient/appointments/apt123/reschedule');
+      expect(ApiEndpoints.patientAppointmentCancel('apt123'), '/api/patient/appointments/apt123/cancel');
+      expect(ApiEndpoints.patientConversations, '/api/patient/conversations');
+      expect(ApiEndpoints.patientConversationMessages('c123'), '/api/patient/conversations/c123/messages');
+      expect(ApiEndpoints.patientConversationStream('c123'), '/api/patient/conversations/c123/stream');
+      expect(ApiEndpoints.patientMessageRead('m123'), '/api/patient/messages/m123/read');
+      expect(ApiEndpoints.patientForms, '/api/patient/forms');
+      expect(ApiEndpoints.patientForm('f123'), '/api/patient/forms/f123');
+      expect(ApiEndpoints.telehealthJoin('token123'), '/api/telehealth/join/token123');
+    });
+
+    test('AuthRemoteDataSource calls logout via POST /api/patient/logout', () async {
+      RequestOptions? capturedOptions;
+      final dio = Dio(BaseOptions(baseUrl: 'https://altrixs.com'));
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            capturedOptions = options;
+            return handler.resolve(
+              Response(
+                requestOptions: options,
+                statusCode: 200,
+                data: {'success': true},
+              ),
+            );
+          },
+        ),
+      );
+
+      final authSource = AuthRemoteDataSource(dio);
+      await authSource.logout();
+
+      expect(capturedOptions, isNotNull);
+      expect(capturedOptions!.path, '/api/patient/logout');
+      expect(capturedOptions!.method, 'POST');
+    });
+
+    test('AuthRemoteDataSource calls deleteAccount via DELETE /api/patient/me', () async {
+      RequestOptions? capturedOptions;
+      final dio = Dio(BaseOptions(baseUrl: 'https://altrixs.com'));
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            capturedOptions = options;
+            return handler.resolve(
+              Response(
+                requestOptions: options,
+                statusCode: 200,
+                data: {'success': true},
+              ),
+            );
+          },
+        ),
+      );
+
+      final authSource = AuthRemoteDataSource(dio);
+      await authSource.deleteAccount();
+
+      expect(capturedOptions, isNotNull);
+      expect(capturedOptions!.path, '/api/patient/me');
+      expect(capturedOptions!.method, 'DELETE');
+    });
+
+    test('ClientModel and User correctly parse avatarUrl and support copyWith', () {
+      final json = {
+        'id': 'p123',
+        'name': 'Sarah Connor',
+        'email': 'sarah@example.com',
+        'phone': '+15552345678',
+        'avatarUrl': 'https://altrixs.com/uploads/sarah.jpg',
+      };
+
+      final client = ClientModel.fromJson(json);
+      expect(client.avatarUrl, 'https://altrixs.com/uploads/sarah.jpg');
+
+      final user = client.toEntity();
+      expect(user.avatarUrl, 'https://altrixs.com/uploads/sarah.jpg');
+
+      final updated = user.copyWith(avatarUrl: 'https://altrixs.com/uploads/sarah_new.jpg');
+      expect(updated.avatarUrl, 'https://altrixs.com/uploads/sarah_new.jpg');
+      expect(updated.name, 'Sarah Connor');
+    });
   });
 }
+

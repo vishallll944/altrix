@@ -209,5 +209,12 @@ class _FakePatientChatRepo implements PatientRepository {
   Future<void> markMessageRead(String messageId) async {}
 
   @override
+  Stream<Map<String, dynamic>> streamLiveMessages({
+    required String threadId,
+    required String token,
+  }) =>
+      const Stream.empty();
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

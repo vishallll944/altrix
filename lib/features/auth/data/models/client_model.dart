@@ -12,6 +12,7 @@ class ClientModel {
     this.postalCode = '',
     this.emergencyContactName = '',
     this.emergencyContactPhone = '',
+    this.avatarUrl = '',
   });
 
   final String id;
@@ -24,6 +25,7 @@ class ClientModel {
   final String postalCode;
   final String emergencyContactName;
   final String emergencyContactPhone;
+  final String avatarUrl;
 
   factory ClientModel.fromJson(Map<String, dynamic> json) {
     final addressObj = json['address'];
@@ -73,6 +75,10 @@ class ClientModel {
           ecMap?['phone'] as String? ??
           ecMap?['phoneNumber'] as String? ??
           '',
+      avatarUrl: json['avatarUrl'] as String? ??
+          json['avatar_url'] as String? ??
+          json['avatar'] as String? ??
+          '',
     );
   }
 
@@ -88,6 +94,7 @@ class ClientModel {
       postalCode: postalCode,
       emergencyContactName: emergencyContactName,
       emergencyContactPhone: emergencyContactPhone,
+      avatarUrl: avatarUrl,
     );
   }
 }

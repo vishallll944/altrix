@@ -88,7 +88,23 @@ class FirebaseAuthRepositoryImpl implements AuthRepository {
     );
   }
 
-  Future<void> signOut() => _firebase.signOut();
+  @override
+  Future<void> signOut() async {
+    try {
+      await _rest.logout();
+    } catch (_) {}
+    await _firebase.signOut();
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    await _rest.deleteAccount();
+  }
+
+  @override
+  Future<String?> uploadAvatar(String filePath) {
+    return _rest.uploadAvatar(filePath);
+  }
 
   Future<String?> getIdToken({bool forceRefresh = false}) {
     return _firebase.getIdToken(forceRefresh: forceRefresh);

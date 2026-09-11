@@ -90,4 +90,19 @@ class AuthRepositoryImpl implements AuthRepository {
       password: password,
     );
   }
+
+  @override
+  Future<void> signOut() {
+    return _remoteDataSource.logout();
+  }
+
+  @override
+  Future<void> deleteAccount() {
+    return _remoteDataSource.deleteAccount();
+  }
+
+  @override
+  Future<String?> uploadAvatar(String filePath) {
+    return _remoteDataSource.uploadAvatar(filePath);
+  }
 }

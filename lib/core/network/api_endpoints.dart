@@ -1,8 +1,9 @@
 class ApiEndpoints {
   const ApiEndpoints._();
 
-  // Auth & onboarding (no token)
+  // Auth & onboarding (no token or Bearer token)
   static const patientLogin = '/api/patient/login';
+  static const patientLogout = '/api/patient/logout';
   static const patientInvitePreview = '/api/patient/invite/preview';
   static const patientInviteAccept = '/api/patient/invite/accept';
   static const patientForgotPassword = '/api/patient/forgot-password';
@@ -10,6 +11,7 @@ class ApiEndpoints {
 
   // Profile & home
   static const patientMe = '/api/patient/me';
+  static const patientAvatar = '/api/patient/avatar';
   static const patientDashboard = '/api/patient/dashboard';
 
   // Appointments
@@ -29,6 +31,8 @@ class ApiEndpoints {
   static const patientConversations = '/api/patient/conversations';
   static String patientConversationMessages(String conversationId) =>
       '/api/patient/conversations/$conversationId/messages';
+  static String patientConversationStream(String conversationId) =>
+      '/api/patient/conversations/$conversationId/stream';
   static String patientMessageRead(String messageId) =>
       '/api/patient/messages/$messageId/read';
 

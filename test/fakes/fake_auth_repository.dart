@@ -94,4 +94,20 @@ class FakeAuthRepository implements AuthRepository {
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 100));
   }
+
+  @override
+  Future<void> signOut() async {
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+  }
+
+  @override
+  Future<String?> uploadAvatar(String filePath) async {
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    return 'https://altrixs.com/avatars/fake_avatar.jpg';
+  }
 }
