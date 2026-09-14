@@ -285,7 +285,7 @@ class _AppointmentEditorScreenState
                   ),
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('Video visit'),
+                    title: const Text('Virtual Video visit'),
                     subtitle: Text(
                       _requiresVideo
                           ? 'This appointment type uses video.'

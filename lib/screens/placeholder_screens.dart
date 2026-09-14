@@ -5,10 +5,12 @@ import '../core/responsive/responsive.dart';
 import '../core/responsive/responsive_widgets.dart';
 import '../features/auth/presentation/providers/auth_provider.dart';
 import '../features/auth/presentation/screens/sign_in_screen.dart';
+import '../features/help/presentation/screens/help_center_screen.dart';
 import '../features/notifications/presentation/screens/notifications_screen.dart';
 import '../features/patient/presentation/screens/forms_screen.dart';
 import '../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../features/profile/presentation/screens/privacy_security_screen.dart';
+import '../features/resources/presentation/screens/resources_screen.dart';
 import '../theme/app_colors.dart';
 
 class ScheduleScreen extends StatelessWidget {
@@ -832,7 +834,13 @@ class CareScreen extends StatelessWidget {
                     subtitle: 'Shared by your therapist',
                     gradient: const [Color(0xFFE8FBF0), Color(0xFFC9F0D8)],
                     iconColor: AppColors.mood5,
-                    onTap: () => _showCareToast(context, 'Coping skills worksheet'),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ResourcesScreen(),
+                        ),
+                      );
+                    },
                   ),
                   SizedBox(height: responsive.rz(22)),
                   Text(
@@ -847,23 +855,19 @@ class CareScreen extends StatelessWidget {
                   ),
                   SizedBox(height: responsive.rz(12)),
                   _CareCrisisCard(
-                    onTap: () => _showCareToast(context, 'Crisis resources'),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ResourcesScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showCareToast(BuildContext context, String item) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Opening $item'),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }
@@ -1755,6 +1759,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     subtitle: 'FAQs and contact support',
                     gradient: const [Color(0xFFFFF4E5), Color(0xFFFFE4C7)],
                     iconColor: AppColors.mood2,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const HelpCenterScreen(),
+                        ),
+                      );
+                    },
                   ),
                   SizedBox(height: responsive.rz(24)),
                   _SignOutButton(

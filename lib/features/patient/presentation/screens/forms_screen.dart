@@ -7,6 +7,7 @@ import '../../../../theme/app_colors.dart';
 import '../../../../widgets/empty_state_card.dart';
 import '../../data/models/patient_models.dart';
 import '../providers/patient_providers.dart';
+import '../widgets/form_detail_sheet.dart';
 
 class FormsScreen extends ConsumerWidget {
   const FormsScreen({super.key});
@@ -221,92 +222,98 @@ class _FormCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final badgeColor = _badgeColor();
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
+    return Material(
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        side: const BorderSide(color: AppColors.border),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: InkWell(
+        onTap: () => showFormDetailModal(context, formId: form.id),
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: badgeColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(Icons.description_outlined, color: badgeColor, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      form.title,
-                      style: const TextStyle(
-                        fontSize: 15,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: badgeColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(Icons.description_outlined, color: badgeColor, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          form.title,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        if (form.description.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            form.description,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: badgeColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _badgeText(),
+                      style: TextStyle(
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        color: badgeColor,
                       ),
                     ),
-                    if (form.description.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        form.description,
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          color: AppColors.textSecondary,
-                        ),
+                  ),
+                ],
+              ),
+              if (form.dueAt.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.event_outlined,
+                      size: 14,
+                      color: AppColors.textTertiary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Due: ${form.dueAt}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textTertiary,
                       ),
-                    ],
+                    ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: badgeColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _badgeText(),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: badgeColor,
-                  ),
-                ),
-              ),
+              ],
             ],
           ),
-          if (form.dueAt.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(
-                  Icons.event_outlined,
-                  size: 14,
-                  color: AppColors.textTertiary,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  'Due: ${form.dueAt}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textTertiary,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }

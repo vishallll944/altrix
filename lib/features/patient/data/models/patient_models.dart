@@ -142,7 +142,8 @@ class AppointmentModel {
     ]);
   }
 
-  bool get hasJoinLink => effectiveJoinUrl.trim().isNotEmpty;
+  bool get hasJoinLink =>
+      effectiveJoinUrl.trim().isNotEmpty || joinToken.trim().isNotEmpty;
 
   String get clinicianId => readString(
     raw,

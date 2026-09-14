@@ -9,6 +9,7 @@ import '../features/notifications/presentation/screens/notifications_screen.dart
 import '../features/patient/data/utils/appointment_utils.dart';
 import '../features/patient/data/models/patient_models.dart';
 import '../features/patient/presentation/providers/patient_providers.dart';
+import '../features/resources/presentation/screens/resources_screen.dart';
 import '../theme/app_colors.dart';
 import '../widgets/appointment_actions.dart';
 import '../widgets/empty_state_card.dart';
@@ -165,7 +166,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       //     MaterialPageRoute(builder: (_) => const FormsScreen()),
                       //   );
                       // },
-                      onResources: () => _toast('Resources coming soon'),
+                      onResources: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const ResourcesScreen(),
+                          ),
+                        );
+                      },
                     ),
                     SizedBox(height: responsive.rz(22)),
                     _CheckInCard(

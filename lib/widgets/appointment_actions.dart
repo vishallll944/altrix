@@ -3,43 +3,30 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../features/patient/data/models/patient_models.dart';
 
+import '../features/telehealth/presentation/screens/telehealth_room_screen.dart';
+
 Future<void> openAppointmentJoin(
   BuildContext context,
   AppointmentModel appointment,
 ) async {
-  final url = appointment.effectiveJoinUrl.trim();
-  if (url.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('No join link available yet')),
+  if (appointment.joinToken.isNotEmpty || appointment.effectiveJoinUrl.isNotEmpty) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TelehealthRoomScreen(
+          joinToken: appointment.joinToken,
+          appointment: appointment,
+        ),
+      ),
     );
     return;
   }
 
-  final uri = Uri.tryParse(url);
-  if (uri == null) {
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Could not open the visit link')),
-    );
-    return;
-  }
-
-  try {
-    final launched = await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
-    );
-    if (!launched && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open the visit link')),
-      );
-    }
-  } catch (_) {
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Could not open the visit link')),
-    );
-  }
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Virtual visit link is not ready yet. Please check closer to your appointment.'),
+      behavior: SnackBarBehavior.floating,
+    ),
+  );
 }
 
 Future<void> openAppointmentDirections(
