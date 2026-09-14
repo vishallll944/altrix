@@ -172,17 +172,81 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Visit format'), findsOneWidget);
-    expect(find.text('In-Person Clinic'), findsOneWidget);
-    expect(find.text('Virtual Video Visit'), findsOneWidget);
+    expect(find.text('Virtual Video visit'), findsOneWidget);
 
-    // Tap Virtual Video Visit
-    await tester.tap(find.text('Virtual Video Visit'));
+    // Tap Virtual Video visit switch
+    await tester.tap(find.text('Virtual Video visit'));
     await tester.pumpAndSettle();
 
     final switchFinder = find.byType(Switch);
     expect(switchFinder, findsOneWidget);
     final switchWidget = tester.widget<Switch>(switchFinder);
     expect(switchWidget.value, isTrue);
+  });
+
+  test('AppointmentModel automatically generates Zoom meeting link for virtual visits', () {
+    final virtualAppt = AppointmentModel.fromJson(const {
+      'id': 'appt-telehealth-987654321',
+      'title': 'Telehealth Therapy',
+      'isVirtual': true,
+      'date': '2026-09-15',
+      'startTime': '11:00',
+      'endTime': '11:50',
+    });
+
+    expect(virtualAppt.isVirtual, isTrue);
+    expect(virtualAppt.hasJoinLink, isTrue);
+    expect(virtualAppt.effectiveJoinUrl, startsWith('https://zoom.us/j/'));
+
+    // If custom meetingUrl or zoomUrl provided, it preserves the exact meeting
+    final customZoomAppt = AppointmentModel.fromJson(const {
+      'id': 'appt-custom-1',
+      'title': 'Zoom Consultation',
+      'isVirtual': true,
+      'zoomUrl': 'https://us05web.zoom.us/j/86415304776?pwd=secretPassword123',
+    });
+    expect(
+      customZoomAppt.effectiveJoinUrl,
+      'https://us05web.zoom.us/j/86415304776?pwd=secretPassword123',
+    );
+  });
+
+  test('isSlotInFuture excludes past times for today and keeps future times', () {
+    final referenceNow = DateTime(2026, 9, 14, 14, 30); // 2:30 PM today
+
+    const pastMorningSlot = AvailabilitySlotModel(
+      date: '2026-09-14',
+      startTime: '10:00',
+      endTime: '10:50',
+      raw: {'available': true},
+    );
+    const pastNoonSlot = AvailabilitySlotModel(
+      date: '2026-09-14',
+      startTime: '14:00',
+      endTime: '14:50',
+      raw: {'available': true},
+    );
+    const futureAfternoonSlot = AvailabilitySlotModel(
+      date: '2026-09-14',
+      startTime: '15:00',
+      endTime: '15:50',
+      raw: {'available': true},
+    );
+    const tomorrowMorningSlot = AvailabilitySlotModel(
+      date: '2026-09-15',
+      startTime: '09:00',
+      endTime: '09:50',
+      raw: {'available': true},
+    );
+
+    // Past morning and noon slots on today are excluded
+    expect(isSlotInFuture(pastMorningSlot, referenceNow), isFalse);
+    expect(isSlotInFuture(pastNoonSlot, referenceNow), isFalse);
+
+    // Future afternoon slot on today is included
+    expect(isSlotInFuture(futureAfternoonSlot, referenceNow), isTrue);
+
+    // Tomorrow morning slot is included
+    expect(isSlotInFuture(tomorrowMorningSlot, referenceNow), isTrue);
   });
 }

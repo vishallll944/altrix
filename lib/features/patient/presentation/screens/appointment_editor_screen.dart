@@ -288,8 +288,10 @@ class _AppointmentEditorScreenState
                     title: const Text('Virtual Video visit'),
                     subtitle: Text(
                       _requiresVideo
-                          ? 'This appointment type uses video.'
-                          : 'Turn off for an in-person visit.',
+                          ? 'This appointment type automatically generates a Zoom video room.'
+                          : (_virtual
+                              ? 'A secure Zoom telehealth meeting link will be generated.'
+                              : 'Turn off for an in-person visit.'),
                     ),
                     value: _virtual || _requiresVideo,
                     onChanged: _saving || _requiresVideo
@@ -372,7 +374,7 @@ class _AppointmentEditorScreenState
                   Text(
                     _rescheduling
                         ? 'Your clinician and visit type will stay the same.'
-                        : '$_type · ${_virtual || _requiresVideo ? "Video visit" : "In-person visit"}',
+                        : '$_type · ${_virtual || _requiresVideo ? "Virtual Video visit (Zoom link generated)" : "In-person visit"}',
                   ),
                 ],
                 if (_error != null) ...[

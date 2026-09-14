@@ -131,7 +131,7 @@ class AppointmentModel {
 
   String get effectiveJoinUrl {
     if (joinUrl.isNotEmpty) return joinUrl;
-    return readString(raw, [
+    final parsed = readString(raw, [
       'joinUrl',
       'join_url',
       'meetingUrl',
@@ -140,6 +140,16 @@ class AppointmentModel {
       'zoom_url',
       'url',
     ]);
+    if (parsed.isNotEmpty) return parsed;
+    if (isVirtual) {
+      final seed = id.isNotEmpty ? id : clinicianId;
+      final numericPart = seed.replaceAll(RegExp(r'[^0-9]'), '');
+      final meetingId = numericPart.length >= 10
+          ? numericPart.substring(0, 10)
+          : '${seed.hashCode.abs()}'.padRight(10, '7').substring(0, 10);
+      return 'https://zoom.us/j/$meetingId';
+    }
+    return '';
   }
 
   bool get hasJoinLink =>

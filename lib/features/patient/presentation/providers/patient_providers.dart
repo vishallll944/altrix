@@ -57,6 +57,25 @@ final doctorAvailabilityProvider = FutureProvider.autoDispose
 
 typedef AppointmentSlotQuery = ({String doctorId, String date});
 
+final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
+
+bool isSlotInFuture(AvailabilitySlotModel slot, DateTime now) {
+  final slotDateParts = slot.date.split('-');
+  final slotTimeParts = slot.startTime.split(':');
+  if (slotDateParts.length == 3 && slotTimeParts.length == 2) {
+    final y = int.tryParse(slotDateParts[0]);
+    final m = int.tryParse(slotDateParts[1]);
+    final d = int.tryParse(slotDateParts[2]);
+    final hour = int.tryParse(slotTimeParts[0]);
+    final min = int.tryParse(slotTimeParts[1]);
+    if (y != null && m != null && d != null && hour != null && min != null) {
+      final slotDateTime = DateTime(y, m, d, hour, min);
+      return slotDateTime.isAfter(now);
+    }
+  }
+  return true;
+}
+
 final appointmentSlotsProvider = FutureProvider.autoDispose
     .family<List<AvailabilitySlotModel>, AppointmentSlotQuery>((
       ref,
@@ -69,6 +88,7 @@ final appointmentSlotsProvider = FutureProvider.autoDispose
             from: query.date,
             days: 1,
           );
+      final now = ref.watch(clockProvider)();
       return slots
           .where(
             (slot) =>
@@ -76,7 +96,8 @@ final appointmentSlotsProvider = FutureProvider.autoDispose
                 slot.isAvailable &&
                 RegExp(r'^\d{2}:\d{2}$').hasMatch(slot.startTime) &&
                 RegExp(r'^\d{2}:\d{2}$').hasMatch(slot.endTime) &&
-                slot.endTime.compareTo(slot.startTime) > 0,
+                slot.endTime.compareTo(slot.startTime) > 0 &&
+                isSlotInFuture(slot, now),
           )
           .toList()
         ..sort((a, b) => a.startTime.compareTo(b.startTime));

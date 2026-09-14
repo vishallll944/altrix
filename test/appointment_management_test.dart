@@ -187,7 +187,12 @@ Future<void> mount(
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [patientRepositoryProvider.overrideWithValue(api.repository)],
+      overrides: [
+        patientRepositoryProvider.overrideWithValue(api.repository),
+        clockProvider.overrideWithValue(
+          () => DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day, 8, 0),
+        ),
+      ],
       child: const MaterialApp(home: ScheduleScreen()),
     ),
   );
