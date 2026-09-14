@@ -5,10 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/responsive/responsive.dart';
 import '../core/responsive/responsive_widgets.dart';
 import '../features/auth/presentation/providers/auth_provider.dart';
+import '../features/notifications/presentation/screens/notifications_screen.dart';
 import '../features/patient/data/utils/appointment_utils.dart';
 import '../features/patient/data/models/patient_models.dart';
 import '../features/patient/presentation/providers/patient_providers.dart';
-import '../features/patient/presentation/screens/forms_screen.dart';
 import '../theme/app_colors.dart';
 import '../widgets/appointment_actions.dart';
 import '../widgets/empty_state_card.dart';
@@ -598,17 +598,9 @@ class _NotificationButton extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                hasUnread
-                    ? '$unreadCount new notifications'
-                    : 'No new notifications',
-              ),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const NotificationsScreen(),
             ),
           );
         },

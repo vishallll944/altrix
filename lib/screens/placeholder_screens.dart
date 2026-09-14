@@ -5,8 +5,10 @@ import '../core/responsive/responsive.dart';
 import '../core/responsive/responsive_widgets.dart';
 import '../features/auth/presentation/providers/auth_provider.dart';
 import '../features/auth/presentation/screens/sign_in_screen.dart';
+import '../features/notifications/presentation/screens/notifications_screen.dart';
 import '../features/patient/presentation/screens/forms_screen.dart';
 import '../features/profile/presentation/screens/edit_profile_screen.dart';
+import '../features/profile/presentation/screens/privacy_security_screen.dart';
 import '../theme/app_colors.dart';
 
 class ScheduleScreen extends StatelessWidget {
@@ -1722,6 +1724,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     subtitle: 'Reminders and care-team alerts',
                     gradient: const [Color(0xFFE8F4FF), Color(0xFFCCE8FF)],
                     iconColor: const Color(0xFF3B82F6),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationsScreen(),
+                        ),
+                      );
+                    },
                   ),
                   _ProfileMenuTile(
                     icon: Icons.lock_outline_rounded,
@@ -1729,6 +1738,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     subtitle: 'HIPAA-ready. Your data stays secure.',
                     gradient: const [Color(0xFFE8FBF0), Color(0xFFC9F0D8)],
                     iconColor: AppColors.mood5,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const PrivacySecurityScreen(),
+                        ),
+                      );
+                    },
                   ),
                   SizedBox(height: responsive.rz(22)),
                   _ProfileSectionTitle(title: 'Support'),
