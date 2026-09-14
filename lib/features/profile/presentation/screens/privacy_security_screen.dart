@@ -9,6 +9,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../auth/presentation/screens/sign_in_screen.dart';
 import '../../../patient/presentation/providers/patient_providers.dart';
+import '../../../../core/utils/usa_timezone_service.dart';
 import '../../data/medical_summary_pdf_service.dart';
 import 'pdf_summary_viewer_screen.dart';
 
@@ -163,6 +164,62 @@ class PrivacySecurityScreen extends ConsumerWidget {
             child: const Text('Close', style: TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showTimezonePicker(BuildContext context, WidgetRef ref) {
+    final currentTz = ref.read(usaTimezoneProvider);
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      backgroundColor: Colors.white,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Text(
+                  'Select USA Timezone',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  'All appointments, check-ins, and reminders will display according to this US timezone.',
+                  style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ...UsaTimezone.values.map((tz) {
+                final isSelected = tz == currentTz;
+                return ListTile(
+                  title: Text(
+                    tz.displayName,
+                    style: TextStyle(
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                    ),
+                  ),
+                  trailing: isSelected
+                      ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
+                      : null,
+                  onTap: () {
+                    ref.read(usaTimezoneProvider.notifier).setTimezone(tz);
+                    Navigator.of(ctx).pop();
+                  },
+                );
+              }),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -380,6 +437,47 @@ class PrivacySecurityScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
+                  ),
+                ],
+              ),
+              SizedBox(height: responsive.rz(22)),
+
+              // Timezone & Localization (USA)
+              _SectionHeader(
+                title: 'Timezone & Localization',
+                subtitle: 'Dates and times synchronized for USA healthcare',
+              ),
+              SizedBox(height: responsive.rz(10)),
+              _SettingsGroupCard(
+                children: [
+                  _SecurityActionTile(
+                    icon: Icons.schedule_rounded,
+                    iconColor: const Color(0xFF6366F1),
+                    title: 'Timezone (USA)',
+                    subtitle: ref.watch(usaTimezoneProvider).displayName,
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            ref.watch(usaTimezoneProvider).shortCode,
+                            style: const TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.chevron_right, size: 20, color: AppColors.textSecondary),
+                      ],
+                    ),
+                    onTap: () => _showTimezonePicker(context, ref),
                   ),
                 ],
               ),

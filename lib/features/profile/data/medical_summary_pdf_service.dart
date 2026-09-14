@@ -6,6 +6,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../../../core/utils/usa_timezone_service.dart';
 import '../../auth/domain/entities/user.dart';
 import '../../patient/data/models/patient_models.dart';
 
@@ -23,9 +24,10 @@ class MedicalSummaryPdfService {
     final pdf = pw.Document();
 
     final now = DateTime.now();
+    final tzAbbr = UsaTimezoneService.getTimezoneAbbreviation(now);
     final dateFormatted =
-        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} '
-        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+        '${now.month.toString().padLeft(2, '0')}/${now.day.toString().padLeft(2, '0')}/${now.year} '
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} $tzAbbr';
     final patientName = (user?.name.trim().isNotEmpty ?? false)
         ? user!.name.trim()
         : 'Patient Record';

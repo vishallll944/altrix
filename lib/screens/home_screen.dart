@@ -14,6 +14,7 @@ import '../theme/app_colors.dart';
 import '../widgets/appointment_actions.dart';
 import '../widgets/empty_state_card.dart';
 import '../widgets/app_buttons.dart';
+import '../core/utils/usa_timezone_service.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key, this.onNavigateToTab});
@@ -26,7 +27,8 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   String get _greeting {
-    final hour = DateTime.now().hour;
+    final tz = ref.watch(usaTimezoneProvider);
+    final hour = UsaTimezoneService.nowInUs(timezone: tz).hour;
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';

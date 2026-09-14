@@ -1,4 +1,5 @@
 import '../../../../core/network/api_response.dart';
+import '../../../../core/utils/usa_timezone_service.dart';
 
 class AppointmentModel {
   const AppointmentModel({
@@ -253,7 +254,10 @@ DateTime? _parseSortDateTime({
   }
 
   if (startsAt.isNotEmpty) {
-    return DateTime.tryParse(startsAt)?.toLocal();
+    final parsed = DateTime.tryParse(startsAt);
+    if (parsed != null) {
+      return parsed;
+    }
   }
   if (normalizedDate.isNotEmpty) {
     return DateTime.tryParse(normalizedDate);
@@ -263,19 +267,7 @@ DateTime? _parseSortDateTime({
 
 String _formatDateLabel(DateTime? sortDateTime, String rawDate) {
   if (sortDateTime != null) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final day = DateTime(sortDateTime.year, sortDateTime.month, sortDateTime.day);
-    if (day == today) return 'Today';
-    if (day == today.add(const Duration(days: 1))) return 'Tomorrow';
-
-    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    return '${weekdays[sortDateTime.weekday - 1]}, '
-        '${months[sortDateTime.month - 1]} ${sortDateTime.day}';
+    return UsaTimezoneService.formatRelativeDate(sortDateTime);
   }
   return rawDate;
 }
@@ -299,11 +291,7 @@ String _formatTimeLabel(String rawTime, DateTime? fallbackDateTime) {
   }
 
   if (fallbackDateTime != null) {
-    final hour = fallbackDateTime.hour;
-    final minute = fallbackDateTime.minute.toString().padLeft(2, '0');
-    final period = hour >= 12 ? 'PM' : 'AM';
-    final hour12 = hour % 12 == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
-    return '$hour12:$minute $period';
+    return UsaTimezoneService.formatTime(fallbackDateTime, includeTz: false);
   }
   return rawTime;
 }

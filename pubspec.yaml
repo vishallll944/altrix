@@ -49,6 +49,7 @@ dependencies:
   printing: ^5.15.0
   webview_flutter: ^4.14.1
   permission_handler: ^13.0.2
+  intl: ^0.20.3
 
 dev_dependencies:
   flutter_test:
