@@ -2458,33 +2458,10 @@ class _ProgressCard extends StatelessWidget {
                     ),
                   ],
                   if (progress.moodTrend.isNotEmpty) ...[
-                    SizedBox(height: responsive.rz(14)),
-                    Text(
-                      'Daily mood',
-                      style: responsiveTextStyle(
-                        context,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    SizedBox(height: responsive.rz(10)),
-                    SizedBox(
-                      height: responsive.rz(72),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          for (final mood in progress.moodTrend)
-                            Expanded(
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: responsive.rz(2),
-                                ),
-                                child: _MoodTrendBar(value: mood),
-                              ),
-                            ),
-                        ],
-                      ),
+                    SizedBox(height: responsive.rz(16)),
+                    _DailyMoodGraph(
+                      moodTrend: progress.moodTrend,
+                      averageMood: progress.averageMood,
                     ),
                   ],
                 ],
@@ -2497,32 +2474,466 @@ class _ProgressCard extends StatelessWidget {
   }
 }
 
-class _MoodTrendBar extends StatelessWidget {
-  const _MoodTrendBar({required this.value});
+class _DailyMoodGraph extends StatefulWidget {
+  const _DailyMoodGraph({
+    required this.moodTrend,
+    this.averageMood,
+  });
 
-  final int value;
+  final List<int> moodTrend;
+  final double? averageMood;
+
+  @override
+  State<_DailyMoodGraph> createState() => _DailyMoodGraphState();
+}
+
+class _DailyMoodGraphState extends State<_DailyMoodGraph> {
+  int? _selectedIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.moodTrend.isNotEmpty) {
+      _selectedIndex = widget.moodTrend.length - 1;
+    }
+  }
+
+  LinearGradient _gradientForScore(int score) {
+    if (score >= 8) {
+      return const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFF34D399), Color(0xFF059669)],
+      );
+    }
+    if (score >= 6) {
+      return const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFF818CF8), Color(0xFF4F46E5)],
+      );
+    }
+    if (score >= 4) {
+      return const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFFFBBF24), Color(0xFFD97706)],
+      );
+    }
+    return const LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [Color(0xFFFB7185), Color(0xFFE11D48)],
+    );
+  }
+
+  Color _colorForScore(int score) {
+    if (score >= 8) return const Color(0xFF10B981);
+    if (score >= 6) return const Color(0xFF6366F1);
+    if (score >= 4) return const Color(0xFFF59E0B);
+    return const Color(0xFFF43F5E);
+  }
+
+  String _moodLabel(int score) {
+    if (score >= 9) return 'Excellent 🤩';
+    if (score >= 8) return 'Very Good 😊';
+    if (score >= 6) return 'Good / Calm 😌';
+    if (score >= 4) return 'Neutral 😐';
+    if (score >= 2) return 'Low Energy 😔';
+    return 'Challenging 💔';
+  }
+
+  String _dayNameForIndex(int index, int total) {
+    final dayOffset = total - 1 - index;
+    final date = DateTime.now().subtract(Duration(days: dayOffset));
+    if (dayOffset == 0) return 'Today';
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return weekdays[date.weekday - 1];
+  }
 
   @override
   Widget build(BuildContext context) {
     final responsive = context.responsive;
-    final normalized = (value.clamp(0, 10) / 10).clamp(0.15, 1.0);
+    final total = widget.moodTrend.length;
+    final selectedIdx = (_selectedIndex != null && _selectedIndex! < total)
+        ? _selectedIndex!
+        : (total - 1);
+    final selectedMood = widget.moodTrend[selectedIdx];
+    final selectedDay = _dayNameForIndex(selectedIdx, total);
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(responsive.rz(16)),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(responsive.rz(20)),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row
+          Row(
+            children: [
+              Container(
+                width: responsive.rz(34),
+                height: responsive.rz(34),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF8B83F6), AppColors.primary],
+                  ),
+                  borderRadius: BorderRadius.circular(responsive.rz(10)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.auto_graph_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+              SizedBox(width: responsive.rz(10)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Daily mood',
+                      style: responsiveTextStyle(
+                        context,
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      '7-day emotional wellness pattern',
+                      style: responsiveTextStyle(
+                        context,
+                        fontSize: 11.5,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (widget.averageMood != null)
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: responsive.rz(10),
+                    vertical: responsive.rz(4),
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(responsive.rz(12)),
+                    border: Border.all(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.star_rounded,
+                        color: Color(0xFF059669),
+                        size: 14,
+                      ),
+                      SizedBox(width: responsive.rz(4)),
+                      Text(
+                        'Avg ${widget.averageMood!.toStringAsFixed(1)}',
+                        style: responsiveTextStyle(
+                          context,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF059669),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+
+          SizedBox(height: responsive.rz(14)),
+
+          // Selected Day Inspection Chip
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(
+              horizontal: responsive.rz(12),
+              vertical: responsive.rz(8),
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(responsive.rz(12)),
+              border: Border.all(
+                color: _colorForScore(selectedMood).withValues(alpha: 0.35),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: _colorForScore(selectedMood).withValues(alpha: 0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: _colorForScore(selectedMood),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    SizedBox(width: responsive.rz(8)),
+                    Text(
+                      selectedDay,
+                      style: responsiveTextStyle(
+                        context,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  '$selectedMood/10 · ${_moodLabel(selectedMood)}',
+                  style: responsiveTextStyle(
+                    context,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: _colorForScore(selectedMood),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          SizedBox(height: responsive.rz(14)),
+
+          // Chart Canvas
+          Container(
+            height: responsive.rz(120),
+            padding: EdgeInsets.symmetric(
+              horizontal: responsive.rz(6),
+              vertical: responsive.rz(8),
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(responsive.rz(16)),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Stack(
+              children: [
+                // Horizontal reference grid lines (dashed)
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildDashedLine(),
+                    _buildDashedLine(),
+                    _buildDashedLine(),
+                  ],
+                ),
+
+                // Bars Row
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    for (int i = 0; i < total; i++) ...[
+                      Expanded(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            setState(() => _selectedIndex = i);
+                          },
+                          child: _buildBarColumn(
+                            context: context,
+                            responsive: responsive,
+                            score: widget.moodTrend[i],
+                            dayLabel: _dayNameForIndex(i, total),
+                            isSelected: i == selectedIdx,
+                            isToday: i == total - 1,
+                          ),
+                        ),
+                      ),
+                      if (i < total - 1) SizedBox(width: responsive.rz(4)),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          SizedBox(height: responsive.rz(12)),
+
+          // Color Legend Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildLegendDot(const Color(0xFF10B981), '8–10 Great'),
+              _buildLegendDot(const Color(0xFF6366F1), '6–7 Good'),
+              _buildLegendDot(const Color(0xFFF59E0B), '4–5 Neutral'),
+              _buildLegendDot(const Color(0xFFF43F5E), '1–3 Low'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDashedLine() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const dashWidth = 4.0;
+        const dashSpace = 4.0;
+        final count = (constraints.maxWidth / (dashWidth + dashSpace)).floor();
+        return Row(
+          children: List.generate(count, (_) {
+            return Container(
+              width: dashWidth,
+              height: 1,
+              margin: const EdgeInsets.only(right: dashSpace),
+              color: const Color(0xFFE2E8F0),
+            );
+          }),
+        );
+      },
+    );
+  }
+
+  Widget _buildBarColumn({
+    required BuildContext context,
+    required dynamic responsive,
+    required int score,
+    required String dayLabel,
+    required bool isSelected,
+    required bool isToday,
+  }) {
+    final normalized = (score.clamp(0, 10) / 10).clamp(0.15, 1.0);
+    const maxBarHeight = 62.0;
+    final barHeight = maxBarHeight * normalized;
+    final color = _colorForScore(score);
+    final gradient = _gradientForScore(score);
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        Container(
-          height: responsive.rz(56) * normalized,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.75),
-            borderRadius: BorderRadius.circular(8),
+        // Top Score Value
+        Text(
+          '$score',
+          style: TextStyle(
+            fontSize: responsive.rz(isSelected ? 11 : 9.5),
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            color: isSelected ? color : AppColors.textSecondary,
           ),
         ),
-        SizedBox(height: responsive.rz(4)),
+        SizedBox(height: responsive.rz(3)),
+
+        // Bar with Background Slot
+        Stack(
+          alignment: Alignment.bottomCenter,
+          children: [
+            // Background Slot Capsule
+            Container(
+              width: responsive.rz(16),
+              height: maxBarHeight,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(responsive.rz(8)),
+              ),
+            ),
+
+            // Active Filled Bar
+            Container(
+              width: responsive.rz(isSelected ? 17 : 14),
+              height: barHeight,
+              decoration: BoxDecoration(
+                gradient: gradient,
+                borderRadius: BorderRadius.circular(responsive.rz(8)),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: color.withValues(alpha: 0.45),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
+                border: isSelected
+                    ? Border.all(color: Colors.white, width: 1.5)
+                    : null,
+              ),
+            ),
+          ],
+        ),
+
+        SizedBox(height: responsive.rz(6)),
+
+        // Bottom Day Label
+        Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: responsive.rz(4),
+            vertical: responsive.rz(1.5),
+          ),
+          decoration: isSelected
+              ? BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(responsive.rz(6)),
+                )
+              : null,
+          child: Text(
+            isToday ? 'Today' : dayLabel,
+            style: TextStyle(
+              fontSize: responsive.rz(isToday || isSelected ? 9.5 : 9),
+              fontWeight:
+                  isToday || isSelected ? FontWeight.w800 : FontWeight.w600,
+              color: isSelected
+                  ? color
+                  : (isToday ? AppColors.textPrimary : AppColors.textSecondary),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLegendDot(Color color, String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 7,
+          height: 7,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 4),
         Text(
-          '$value',
-          style: responsiveTextStyle(
-            context,
+          text,
+          style: const TextStyle(
             fontSize: 10,
+            fontWeight: FontWeight.w600,
             color: AppColors.textSecondary,
           ),
         ),
