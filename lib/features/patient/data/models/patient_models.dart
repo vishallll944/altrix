@@ -103,7 +103,7 @@ class AppointmentModel {
       dateLabel: formattedDate,
       timeLabel: formattedStart,
       endTimeLabel: formattedEnd,
-      visitType: isVirtual ? 'Video duration' : 'In-person visit',
+      visitType: isVirtual ? 'Video visit' : 'In-person visit',
       duration: _formatDuration(
         startTime: startTime,
         endTime: endTime,

@@ -129,9 +129,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     SizedBox(height: responsive.rz(22)),
                     appointmentsAsync.when(
-                      loading: () => const InlineLoadingCard(
-                        label: 'Loading your next session...',
-                      ),
+                      loading: () => const _NextSessionSkeletonCard(),
                       error: (error, _) => InlineErrorCard(
                         message: friendlyErrorMessage(error),
                         onRetry: () => ref.invalidate(appointmentsProvider),
@@ -756,6 +754,143 @@ class _EmptyNextSessionCard extends StatelessWidget {
   }
 }
 
+class _NextSessionSkeletonCard extends StatefulWidget {
+  const _NextSessionSkeletonCard();
+
+  @override
+  State<_NextSessionSkeletonCard> createState() =>
+      _NextSessionSkeletonCardState();
+}
+
+class _NextSessionSkeletonCardState extends State<_NextSessionSkeletonCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat(reverse: true);
+    _animation = Tween<double>(begin: 0.35, end: 0.75).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Widget _buildShimmerBox({
+    required double width,
+    required double height,
+    required double borderRadius,
+    required double opacity,
+  }) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: opacity),
+        borderRadius: BorderRadius.circular(borderRadius),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final responsive = context.responsive;
+
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        final op = _animation.value;
+
+        return Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(responsive.rz(28)),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF12103A),
+                Color(0xFF1C1858),
+                Color(0xFF221A6A),
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.navy.withValues(alpha: 0.28),
+                blurRadius: 28,
+                offset: const Offset(0, 14),
+              ),
+            ],
+          ),
+          padding: EdgeInsets.fromLTRB(
+            responsive.rz(22),
+            responsive.rz(20),
+            responsive.rz(18),
+            responsive.rz(18),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top "Next session" pill skeleton
+              _buildShimmerBox(
+                width: responsive.rz(110.0),
+                height: responsive.rz(24.0),
+                borderRadius: 20,
+                opacity: op * 0.45,
+              ),
+              SizedBox(height: responsive.rz(16.0)),
+
+              // Title / DateTime skeleton line
+              _buildShimmerBox(
+                width: responsive.rz(220.0),
+                height: responsive.rz(24.0),
+                borderRadius: 8,
+                opacity: op * 0.65,
+              ),
+              SizedBox(height: responsive.rz(8.0)),
+
+              // Provider line skeleton
+              _buildShimmerBox(
+                width: responsive.rz(150.0),
+                height: responsive.rz(16.0),
+                borderRadius: 6,
+                opacity: op * 0.4,
+              ),
+              SizedBox(height: responsive.rz(14.0)),
+
+              // Duration badge skeleton
+              _buildShimmerBox(
+                width: responsive.rz(130.0),
+                height: responsive.rz(26.0),
+                borderRadius: 12,
+                opacity: op * 0.35,
+              ),
+              SizedBox(height: responsive.rz(20.0)),
+
+              // Join Zoom button skeleton
+              _buildShimmerBox(
+                width: double.infinity,
+                height: responsive.rz(50.0),
+                borderRadius: 28,
+                opacity: op * 0.8,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _NextSessionCard extends StatelessWidget {
   const _NextSessionCard({
     required this.appointment,
@@ -909,7 +1044,11 @@ class _NextSessionCard extends StatelessWidget {
                                       const SizedBox(width: 6),
                                       Flexible(
                                         child: Text(
-                                          '${appointment.visitType}  ·  ${appointment.duration}',
+                                          appointment.isVirtual
+                                              ? (appointment.duration.isNotEmpty
+                                                  ? 'Video duration: ${appointment.duration}'
+                                                  : 'Video duration: 50 min')
+                                              : '${appointment.visitType}  ·  ${appointment.duration}',
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: responsiveTextStyle(
