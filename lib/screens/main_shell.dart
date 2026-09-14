@@ -19,10 +19,7 @@ class MainShell extends StatefulWidget {
 }
 
 class _MainShellState extends State<MainShell> {
-  static const _transitionDuration = Duration(milliseconds: 320);
-
   late int _index = widget.initialIndex;
-  late int _previousIndex = widget.initialIndex;
 
   static const _destinations = [
     _NavDestination(
@@ -51,7 +48,6 @@ class _MainShellState extends State<MainShell> {
     if (value == _index) return;
     HapticFeedback.selectionClick();
     setState(() {
-      _previousIndex = _index;
       _index = value;
     });
   }
@@ -66,10 +62,8 @@ class _MainShellState extends State<MainShell> {
       const ProfileScreen(),
     ];
 
-    final body = _AnimatedTabBody(
+    final body = IndexedStack(
       index: _index,
-      previousIndex: _previousIndex,
-      duration: _transitionDuration,
       children: pages,
     );
 
@@ -95,93 +89,6 @@ class _MainShellState extends State<MainShell> {
                 index: _index,
                 onChanged: _onTabSelected,
               ),
-      ),
-    );
-  }
-}
-
-class _AnimatedTabBody extends StatelessWidget {
-  const _AnimatedTabBody({
-    required this.index,
-    required this.previousIndex,
-    required this.duration,
-    required this.children,
-  });
-
-  final int index;
-  final int previousIndex;
-  final Duration duration;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    final direction = index == previousIndex
-        ? 0
-        : index > previousIndex
-            ? 1
-            : -1;
-
-    // Paint the active tab last so it stays above fading-out screens.
-    final orderedIndices = [
-      for (var i = 0; i < children.length; i++)
-        if (i != index) i,
-      index,
-    ];
-
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        for (final i in orderedIndices)
-          _TabTransitionView(
-            key: ValueKey('tab_$i'),
-            isActive: index == i,
-            direction: direction,
-            duration: duration,
-            child: children[i],
-          ),
-      ],
-    );
-  }
-}
-
-class _TabTransitionView extends StatelessWidget {
-  const _TabTransitionView({
-    super.key,
-    required this.isActive,
-    required this.direction,
-    required this.duration,
-    required this.child,
-  });
-
-  final bool isActive;
-  final int direction;
-  final Duration duration;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final inactiveOffset = Offset(direction * 0.045, 0.012);
-
-    return IgnorePointer(
-      ignoring: !isActive,
-      child: AnimatedOpacity(
-        opacity: isActive ? 1 : 0,
-        duration: duration,
-        curve: Curves.easeInOutCubic,
-        child: AnimatedSlide(
-          offset: isActive ? Offset.zero : inactiveOffset,
-          duration: duration,
-          curve: Curves.easeOutCubic,
-          child: AnimatedScale(
-            scale: isActive ? 1 : 0.985,
-            duration: duration,
-            curve: Curves.easeOutCubic,
-            child: TickerMode(
-              enabled: isActive,
-              child: child,
-            ),
-          ),
-        ),
       ),
     );
   }
