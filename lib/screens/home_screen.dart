@@ -755,7 +755,7 @@ class _EmptyNextSessionCard extends StatelessWidget {
 }
 
 class _NextSessionSkeletonCard extends StatefulWidget {
-  const _NextSessionSkeletonCard();
+  const _NextSessionSkeletonCard({super.key});
 
   @override
   State<_NextSessionSkeletonCard> createState() =>
@@ -2695,11 +2695,14 @@ class _DailyMoodGraphState extends State<_DailyMoodGraph> {
   @override
   Widget build(BuildContext context) {
     final responsive = context.responsive;
-    final total = widget.moodTrend.length;
+    final trend = widget.moodTrend.length > 7
+        ? widget.moodTrend.sublist(widget.moodTrend.length - 7)
+        : widget.moodTrend;
+    final total = trend.length;
     final selectedIdx = (_selectedIndex != null && _selectedIndex! < total)
         ? _selectedIndex!
         : (total - 1);
-    final selectedMood = widget.moodTrend[selectedIdx];
+    final selectedMood = trend[selectedIdx];
     final selectedDay = _dayNameForIndex(selectedIdx, total);
 
     return Container(
@@ -2778,30 +2781,18 @@ class _DailyMoodGraphState extends State<_DailyMoodGraph> {
                   ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(responsive.rz(12)),
+                    borderRadius: BorderRadius.circular(responsive.rz(20)),
                     border: Border.all(
                       color: const Color(0xFF10B981).withValues(alpha: 0.3),
                     ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.star_rounded,
-                        color: Color(0xFF059669),
-                        size: 14,
-                      ),
-                      SizedBox(width: responsive.rz(4)),
-                      Text(
-                        'Avg ${widget.averageMood!.toStringAsFixed(1)}',
-                        style: responsiveTextStyle(
-                          context,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF059669),
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    'Avg ${widget.averageMood!.toStringAsFixed(1)}',
+                    style: TextStyle(
+                      fontSize: responsive.rz(11),
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF059669),
+                    ),
                   ),
                 ),
             ],
@@ -2809,44 +2800,32 @@ class _DailyMoodGraphState extends State<_DailyMoodGraph> {
 
           SizedBox(height: responsive.rz(14)),
 
-          // Selected Day Inspection Chip
+          // Selected Day Mood Status Banner
           Container(
-            width: double.infinity,
             padding: EdgeInsets.symmetric(
               horizontal: responsive.rz(12),
               vertical: responsive.rz(8),
             ),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: _colorForScore(selectedMood).withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(responsive.rz(12)),
               border: Border.all(
-                color: _colorForScore(selectedMood).withValues(alpha: 0.35),
-                width: 1.2,
+                color: _colorForScore(selectedMood).withValues(alpha: 0.22),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: _colorForScore(selectedMood).withValues(alpha: 0.08),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: _colorForScore(selectedMood),
-                        shape: BoxShape.circle,
-                      ),
+                    Icon(
+                      Icons.insights_rounded,
+                      size: 15,
+                      color: _colorForScore(selectedMood),
                     ),
-                    SizedBox(width: responsive.rz(8)),
+                    const SizedBox(width: 6),
                     Text(
-                      selectedDay,
+                      selectedDay == 'Today' ? "Today's Mood" : '$selectedDay Mood',
                       style: responsiveTextStyle(
                         context,
                         fontSize: 12.5,
@@ -2873,7 +2852,7 @@ class _DailyMoodGraphState extends State<_DailyMoodGraph> {
 
           // Chart Canvas
           Container(
-            height: responsive.rz(120),
+            height: responsive.rz(132),
             padding: EdgeInsets.symmetric(
               horizontal: responsive.rz(6),
               vertical: responsive.rz(8),
@@ -2909,7 +2888,7 @@ class _DailyMoodGraphState extends State<_DailyMoodGraph> {
                           child: _buildBarColumn(
                             context: context,
                             responsive: responsive,
-                            score: widget.moodTrend[i],
+                            score: trend[i],
                             dayLabel: _dayNameForIndex(i, total),
                             isSelected: i == selectedIdx,
                             isToday: i == total - 1,
@@ -2970,8 +2949,6 @@ class _DailyMoodGraphState extends State<_DailyMoodGraph> {
     required bool isToday,
   }) {
     final normalized = (score.clamp(0, 10) / 10).clamp(0.15, 1.0);
-    const maxBarHeight = 62.0;
-    final barHeight = maxBarHeight * normalized;
     final color = _colorForScore(score);
     final gradient = _gradientForScore(score);
 
@@ -2979,77 +2956,102 @@ class _DailyMoodGraphState extends State<_DailyMoodGraph> {
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         // Top Score Value
-        Text(
-          '$score',
-          style: TextStyle(
-            fontSize: responsive.rz(isSelected ? 11.0 : 9.5),
-            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-            color: isSelected ? color : AppColors.textSecondary,
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            '$score',
+            maxLines: 1,
+            style: TextStyle(
+              fontSize: responsive.rz(isSelected ? 11.0 : 9.5),
+              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+              color: isSelected ? color : AppColors.textSecondary,
+            ),
           ),
         ),
-        SizedBox(height: responsive.rz(3.0)),
+        SizedBox(height: responsive.rz(2.0)),
 
         // Bar with Background Slot
-        Stack(
-          alignment: Alignment.bottomCenter,
-          children: [
-            // Background Slot Capsule
-            Container(
-              width: responsive.rz(16.0),
-              height: maxBarHeight,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(responsive.rz(8.0)),
-              ),
-            ),
+        Expanded(
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final maxBarHeight = constraints.maxHeight;
+                final barHeight =
+                    (maxBarHeight * normalized).clamp(8.0, maxBarHeight);
+                return Stack(
+                  alignment: Alignment.bottomCenter,
+                  children: [
+                    // Background Slot Capsule
+                    Container(
+                      width: responsive.rz(14.0),
+                      height: maxBarHeight,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius:
+                            BorderRadius.circular(responsive.rz(7.0)),
+                      ),
+                    ),
 
-            // Active Filled Bar
-            Container(
-              width: responsive.rz(isSelected ? 17.0 : 14.0),
-              height: barHeight,
-              decoration: BoxDecoration(
-                gradient: gradient,
-                borderRadius: BorderRadius.circular(responsive.rz(8.0)),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: color.withValues(alpha: 0.45),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ]
-                    : null,
-                border: isSelected
-                    ? Border.all(color: Colors.white, width: 1.5)
-                    : null,
-              ),
+                    // Active Filled Bar
+                    Container(
+                      width: responsive.rz(isSelected ? 15.0 : 12.0),
+                      height: barHeight,
+                      decoration: BoxDecoration(
+                        gradient: gradient,
+                        borderRadius:
+                            BorderRadius.circular(responsive.rz(7.0)),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: color.withValues(alpha: 0.45),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : null,
+                        border: isSelected
+                            ? Border.all(color: Colors.white, width: 1.5)
+                            : null,
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
-          ],
+          ),
         ),
 
-        SizedBox(height: responsive.rz(6.0)),
+        SizedBox(height: responsive.rz(4.0)),
 
         // Bottom Day Label
         Container(
           padding: EdgeInsets.symmetric(
-            horizontal: responsive.rz(4.0),
-            vertical: responsive.rz(1.5),
+            horizontal: responsive.rz(2.0),
+            vertical: responsive.rz(1.0),
           ),
           decoration: isSelected
               ? BoxDecoration(
                   color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(responsive.rz(6.0)),
+                  borderRadius: BorderRadius.circular(responsive.rz(5.0)),
                 )
               : null,
-          child: Text(
-            isToday ? 'Today' : dayLabel,
-            style: TextStyle(
-              fontSize: responsive.rz(isToday || isSelected ? 9.5 : 9.0),
-              fontWeight:
-                  isToday || isSelected ? FontWeight.w800 : FontWeight.w600,
-              color: isSelected
-                  ? color
-                  : (isToday ? AppColors.textPrimary : AppColors.textSecondary),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              isToday ? 'Today' : dayLabel,
+              maxLines: 1,
+              softWrap: false,
+              style: TextStyle(
+                fontSize: responsive.rz(isToday || isSelected ? 9.5 : 9.0),
+                fontWeight:
+                    isToday || isSelected ? FontWeight.w800 : FontWeight.w600,
+                color: isSelected
+                    ? color
+                    : (isToday
+                        ? AppColors.textPrimary
+                        : AppColors.textSecondary),
+              ),
             ),
           ),
         ),

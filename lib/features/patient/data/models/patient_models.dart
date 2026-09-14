@@ -1077,25 +1077,47 @@ class ProgressModel {
         : payload;
 
     final daily = weeklyMap['daily'];
-    final moodTrend = daily is List
-        ? daily
-              .map((item) {
-                if (item is! Map<String, dynamic>) return null;
-                final mood = item['mood'];
-                if (mood is int) return mood;
-                if (mood is num) return mood.round();
-                return int.tryParse(mood?.toString() ?? '');
-              })
-              .whereType<int>()
-              .toList()
-        : readIntList(source, [
-            'moodTrend',
-            'mood_trend',
-            'weeklyMood',
-            'weekly_mood',
-            'moodHistory',
-            'mood_history',
-          ]);
+    final moodTrend = () {
+      if (daily is List) {
+        final Map<String, int> byDate = {};
+        final List<int> rawList = [];
+        for (final item in daily) {
+          if (item is! Map<String, dynamic>) continue;
+          final mood = item['mood'];
+          final score = mood is int
+              ? mood
+              : (mood is num ? mood.round() : int.tryParse(mood?.toString() ?? ''));
+          if (score == null) continue;
+          final date = item['date']?.toString();
+          if (date != null && date.isNotEmpty) {
+            byDate[date] = score;
+          } else {
+            rawList.add(score);
+          }
+        }
+        if (byDate.isNotEmpty) {
+          final sortedDates = byDate.keys.toList()..sort();
+          final list = sortedDates.map((d) => byDate[d]!).toList();
+          return list.length > 7 ? list.sublist(list.length - 7) : list;
+        }
+        if (rawList.isNotEmpty) {
+          return rawList.length > 7
+              ? rawList.sublist(rawList.length - 7)
+              : rawList;
+        }
+      }
+      final fallback = readIntList(source, [
+        'moodTrend',
+        'mood_trend',
+        'weeklyMood',
+        'weekly_mood',
+        'moodHistory',
+        'mood_history',
+      ]);
+      return fallback.length > 7
+          ? fallback.sublist(fallback.length - 7)
+          : fallback;
+    }();
 
     final riskLevel = () {
       final fromRoot = readString(payload, [

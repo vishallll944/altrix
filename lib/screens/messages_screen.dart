@@ -21,24 +21,6 @@ class MessagesScreen extends ConsumerStatefulWidget {
 }
 
 class _MessagesScreenState extends ConsumerState<MessagesScreen> {
-  Timer? _liveRefreshTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    // Periodically refresh conversations in real-time so new messages & unread counts update live
-    _liveRefreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (!mounted) return;
-      ref.invalidate(conversationsProvider);
-    });
-  }
-
-  @override
-  void dispose() {
-    _liveRefreshTimer?.cancel();
-    super.dispose();
-  }
-
   String _initials(String name) {
     final trimmed = name.trim();
     if (trimmed.isEmpty) return 'U';
