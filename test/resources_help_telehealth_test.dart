@@ -7,6 +7,7 @@ import 'package:altrix/features/patient/data/models/patient_models.dart';
 import 'package:altrix/features/patient/presentation/providers/patient_providers.dart';
 import 'package:altrix/features/patient/presentation/screens/appointment_editor_screen.dart';
 import 'package:altrix/features/resources/presentation/screens/resources_screen.dart';
+import 'package:altrix/features/telehealth/presentation/screens/in_app_zoom_meeting_screen.dart';
 import 'package:altrix/features/telehealth/presentation/screens/telehealth_room_screen.dart';
 
 void main() {
@@ -248,5 +249,69 @@ void main() {
 
     // Tomorrow morning slot is included
     expect(isSlotInFuture(tomorrowMorningSlot, referenceNow), isTrue);
+  });
+
+  test('InAppZoomMeetingScreen converts standard Zoom URL to Web Client join URL', () {
+    const standardUrl = 'https://zoom.us/j/84930291029?pwd=testPassword123';
+    final webClientUrl = InAppZoomMeetingScreen.toZoomWebClientUrl(standardUrl);
+    expect(webClientUrl, 'https://app.zoom.us/wc/84930291029/join?pwd=testPassword123');
+
+    // Extracts meeting ID cleanly
+    final meetingId = InAppZoomMeetingScreen.extractMeetingId(standardUrl);
+    expect(meetingId, '84930291029');
+  });
+
+  testWidgets('InAppZoomMeetingScreen renders top bar, controls, and handles end meeting dialog',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final appointment = AppointmentModel.fromJson(const {
+      'id': 'appt-zoom-1',
+      'title': 'Dr. Marcus Vance',
+      'providerName': 'Dr. Marcus Vance',
+      'isVirtual': true,
+      'zoomUrl': 'https://zoom.us/j/9876543210',
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InAppZoomMeetingScreen(
+          meetingUrl: appointment.effectiveJoinUrl,
+          appointment: appointment,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Header checks
+    expect(find.text('ZOOM'), findsOneWidget);
+    expect(find.text('Dr. Marcus Vance'), findsWidgets);
+    expect(find.textContaining('Meeting ID: 9876543210'), findsOneWidget);
+    expect(find.text('Open in App'), findsOneWidget);
+
+    // Call controls check
+    expect(find.text('Mute'), findsOneWidget);
+    expect(find.text('Stop Video'), findsOneWidget);
+    expect(find.text('Speaker'), findsOneWidget);
+    expect(find.text('Leave'), findsOneWidget);
+
+    // Tap Mute
+    await tester.tap(find.text('Mute'));
+    await tester.pumpAndSettle();
+    expect(find.text('Unmute'), findsOneWidget);
+
+    // Tap Leave to open dialog
+    await tester.tap(find.text('Leave'));
+    await tester.pumpAndSettle();
+    expect(find.text('End Zoom Meeting?'), findsOneWidget);
+    expect(find.text('Stay in Meeting'), findsOneWidget);
+    expect(find.text('Leave Call'), findsOneWidget);
+
+    // Dismiss dialog
+    await tester.tap(find.text('Stay in Meeting'));
+    await tester.pumpAndSettle();
+    expect(find.text('End Zoom Meeting?'), findsNothing);
   });
 }

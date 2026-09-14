@@ -9,6 +9,8 @@ import '../../../../theme/app_colors.dart';
 import '../../../patient/data/models/patient_models.dart';
 import '../../../patient/presentation/providers/patient_providers.dart';
 
+import 'in_app_zoom_meeting_screen.dart';
+
 class TelehealthRoomScreen extends ConsumerStatefulWidget {
   const TelehealthRoomScreen({
     super.key,
@@ -69,49 +71,19 @@ class _TelehealthRoomScreenState extends ConsumerState<TelehealthRoomScreen> {
     }
   }
 
-  Future<void> _enterVideoCall(String url) async {
-    final cleanUrl = url.trim();
-    if (cleanUrl.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Video room link is preparing. Please wait a moment.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
+  void _enterVideoCall(String url) {
+    final effectiveUrl = url.trim().isNotEmpty
+        ? url.trim()
+        : (widget.appointment?.effectiveJoinUrl ?? '');
 
-    final uri = Uri.tryParse(cleanUrl);
-    if (uri == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not open video room link.'),
-          behavior: SnackBarBehavior.floating,
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => InAppZoomMeetingScreen(
+          meetingUrl: effectiveUrl,
+          appointment: widget.appointment,
         ),
-      );
-      return;
-    }
-
-    try {
-      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!launched && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not launch video room.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not launch video room.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }
+      ),
+    );
   }
 
   @override
