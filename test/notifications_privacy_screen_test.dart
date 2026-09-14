@@ -162,5 +162,55 @@ void main() {
       final header = String.fromCharCodes(pdfBytes.take(5));
       expect(header, '%PDF-');
     });
+
+    testWidgets('Export Medical Summary displays Chrome-style download notification with Open action',
+        (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      final prefs = await SharedPreferences.getInstance();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sharedPreferencesProvider.overrideWithValue(prefs),
+            appointmentsProvider.overrideWith((ref) async => []),
+            checkInsProvider.overrideWith((ref) async => []),
+            progressProvider.overrideWith((ref) async => ProgressModel.fromJson(const {})),
+          ],
+          child: const MaterialApp(
+            home: PrivacySecurityScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final exportTileFinder = find.text('Export Medical Summary');
+      await tester.ensureVisible(exportTileFinder);
+      await tester.pumpAndSettle();
+
+      // Tap Export Medical Summary
+      await tester.tap(exportTileFinder);
+      await tester.runAsync(() async {
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+      });
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Verify Chrome-style download notification appears
+      expect(find.text('File downloaded · Tap to open'), findsOneWidget);
+      expect(find.text('Open'), findsOneWidget);
+
+      // Tap Open
+      await tester.tap(find.text('Open'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // Verify PdfSummaryViewerScreen opened
+      expect(find.text('Encrypted Medical Summary'), findsOneWidget);
+      expect(find.byTooltip('Share / Save PDF'), findsOneWidget);
+      expect(find.byTooltip('Print Summary'), findsOneWidget);
+    });
   });
 }

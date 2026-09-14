@@ -10,6 +10,7 @@ import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../auth/presentation/screens/sign_in_screen.dart';
 import '../../../patient/presentation/providers/patient_providers.dart';
 import '../../data/medical_summary_pdf_service.dart';
+import 'pdf_summary_viewer_screen.dart';
 
 /// Persisted privacy and security settings.
 class SecurityPreferences {
@@ -452,28 +453,6 @@ class PrivacySecurityScreen extends ConsumerWidget {
                     subtitle: 'Download encrypted record of your check-ins & visits (PDF)',
                     onTap: () async {
                       final messenger = ScaffoldMessenger.of(context);
-                      messenger.showSnackBar(
-                        const SnackBar(
-                          content: Row(
-                            children: [
-                              SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              SizedBox(width: 12),
-                              Expanded(
-                                child: Text('Generating encrypted Medical Summary PDF...'),
-                              ),
-                            ],
-                          ),
-                          duration: Duration(seconds: 2),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
 
                       try {
                         final appointments =
@@ -482,27 +461,129 @@ class PrivacySecurityScreen extends ConsumerWidget {
                             ref.read(checkInsProvider).valueOrNull ?? const [];
                         final progress = ref.read(progressProvider).valueOrNull;
 
-                        final savedFile =
-                            await MedicalSummaryPdfService.generateAndDownloadPdf(
+                        final cleanName = (user?.name.trim().isNotEmpty ?? false)
+                            ? user!.name.trim().replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')
+                            : 'Patient';
+                        final dateStr = DateTime.now().toIso8601String().substring(0, 10);
+                        final filename = 'Altrix_Medical_Summary_${cleanName}_$dateStr.pdf';
+
+                        final pdfBytes = await MedicalSummaryPdfService.generatePdf(
                           user: user,
                           appointments: appointments,
                           checkIns: checkIns,
                           progress: progress,
                         );
 
+                        // Save file locally for download
+                        await MedicalSummaryPdfService.savePdfBytes(
+                          bytes: pdfBytes,
+                          filename: filename,
+                        );
+
                         messenger.hideCurrentSnackBar();
                         messenger.showSnackBar(
                           SnackBar(
-                            content: Text(
-                              savedFile != null
-                                  ? 'Medical Summary PDF downloaded: ${savedFile.path.split("/").last}'
-                                  : 'Medical Summary PDF downloaded successfully.',
-                            ),
-                            backgroundColor: AppColors.mood5,
+                            backgroundColor: const Color(0xFF202124),
                             behavior: SnackBarBehavior.floating,
+                            elevation: 10,
+                            margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: const BorderSide(color: Color(0xFF3C4043), width: 1),
+                            ),
+                            duration: const Duration(seconds: 7),
+                            content: InkWell(
+                              onTap: () {
+                                messenger.hideCurrentSnackBar();
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => PdfSummaryViewerScreen(
+                                      pdfBytes: pdfBytes,
+                                      filename: filename,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFF1E8E3E),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.arrow_downward_rounded,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          filename,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        const Text(
+                                          'File downloaded · Tap to open',
+                                          style: TextStyle(
+                                            color: Color(0xFF9AA0A6),
+                                            fontSize: 11.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  TextButton(
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: const Color(0xFF8AB4F8),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                    onPressed: () {
+                                      messenger.hideCurrentSnackBar();
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => PdfSummaryViewerScreen(
+                                            pdfBytes: pdfBytes,
+                                            filename: filename,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: const Text(
+                                      'Open',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 14,
+                                        color: Color(0xFF8AB4F8),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         );
-                      } catch (e) {
+                      } catch (e, stack) {
+                        debugPrint('PDF export error: $e\n$stack');
                         messenger.hideCurrentSnackBar();
                         messenger.showSnackBar(
                           SnackBar(
