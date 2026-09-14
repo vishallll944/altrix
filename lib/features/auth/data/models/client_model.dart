@@ -1,3 +1,4 @@
+import '../../../../core/network/api_response.dart';
 import '../../domain/entities/user.dart';
 
 class ClientModel {
@@ -75,10 +76,19 @@ class ClientModel {
           ecMap?['phone'] as String? ??
           ecMap?['phoneNumber'] as String? ??
           '',
-      avatarUrl: json['avatarUrl'] as String? ??
-          json['avatar_url'] as String? ??
-          json['avatar'] as String? ??
-          '',
+      avatarUrl: resolveMediaUrl(
+        readString(json, [
+          'avatarUrl',
+          'avatar_url',
+          'avatar',
+          'image',
+          'imageUrl',
+          'image_url',
+          'photoUrl',
+          'photo_url',
+          'picture',
+        ]),
+      ),
     );
   }
 

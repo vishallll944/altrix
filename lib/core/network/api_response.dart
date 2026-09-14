@@ -1,4 +1,17 @@
+import '../config/env.dart';
 import 'api_exception.dart';
+
+/// Resolves relative media paths (e.g. /uploads/...) to absolute URLs using baseUrl.
+String resolveMediaUrl(String rawUrl, {String? baseUrl}) {
+  final trimmed = rawUrl.trim();
+  if (trimmed.isEmpty) return '';
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+  final base = (baseUrl ?? Env.apiBaseUrl).replaceAll(RegExp(r'/+$'), '');
+  final path = trimmed.startsWith('/') ? trimmed : '/$trimmed';
+  return '$base$path';
+}
 
 Map<String, dynamic> unwrapApiPayload(Map<String, dynamic> json) {
   final data = json['data'];

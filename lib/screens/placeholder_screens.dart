@@ -1954,19 +1954,35 @@ class _ProfileHeroCard extends StatelessWidget {
                     child: CircleAvatar(
                       radius: responsive.rz(38),
                       backgroundColor: AppColors.primary,
-                      backgroundImage: avatarUrl.isNotEmpty
-                          ? NetworkImage(avatarUrl)
-                          : null,
-                      child: avatarUrl.isNotEmpty
-                          ? null
-                          : Text(
-                              initials,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                                fontSize: responsive.rz(26),
+                      child: ClipOval(
+                        child: avatarUrl.isNotEmpty
+                            ? Image.network(
+                                avatarUrl,
+                                width: responsive.rz(76),
+                                height: responsive.rz(76),
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Center(
+                                  child: Text(
+                                    initials,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: responsive.rz(26),
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : Center(
+                                child: Text(
+                                  initials,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: responsive.rz(26),
+                                  ),
+                                ),
                               ),
-                            ),
+                      ),
                     ),
                   ),
                   SizedBox(height: responsive.rz(12)),

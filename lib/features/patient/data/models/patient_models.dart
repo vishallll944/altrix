@@ -143,6 +143,25 @@ class AppointmentModel {
   }
 
   bool get hasJoinLink => effectiveJoinUrl.trim().isNotEmpty;
+
+  String get clinicianId => readString(
+    raw,
+    ['clinicianId', 'clinician_id'],
+    fallback: raw['clinician'] is Map<String, dynamic>
+        ? readString(raw['clinician'] as Map<String, dynamic>, ['id'])
+        : '',
+  );
+
+  bool get canManage {
+    final start = DateTime.tryParse(readString(raw, ['startsAt', 'starts_at'])) ??
+        sortDateTime;
+    return id.isNotEmpty &&
+        start != null &&
+        start.isAfter(DateTime.now()) &&
+        const {'pending', 'confirmed', 'scheduled', 'reschedule_requested'}
+            .contains(status.toLowerCase());
+  }
+
 }
 
 String _readNestedName(Map<String, dynamic> json, List<String> keys) {
@@ -287,6 +306,9 @@ class AvailabilitySlotModel {
   final String startTime;
   final String endTime;
   final Map<String, dynamic> raw;
+
+  // Missing availability must never make an unverified slot bookable.
+  bool get isAvailable => raw['available'] == true;
 
   factory AvailabilitySlotModel.fromJson(Map<String, dynamic> json) {
     return AvailabilitySlotModel(

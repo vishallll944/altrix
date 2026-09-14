@@ -71,6 +71,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                 _UserHeader(
                   userName: userName,
                   initials: _initials(userName),
+                  avatarUrl: user?.avatarUrl ?? '',
                 ),
                 SizedBox(height: responsive.rz(18)),
 
@@ -189,10 +190,12 @@ class _UserHeader extends StatelessWidget {
   const _UserHeader({
     required this.userName,
     required this.initials,
+    this.avatarUrl = '',
   });
 
   final String userName;
   final String initials;
+  final String avatarUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -218,6 +221,7 @@ class _UserHeader extends StatelessWidget {
           // Profile Avatar Icon with online indicator
           _HeaderProfileAvatar(
             initials: initials,
+            avatarUrl: avatarUrl,
           ),
           SizedBox(width: responsive.rz(12)),
           Expanded(
@@ -299,9 +303,13 @@ class _UserHeader extends StatelessWidget {
 }
 
 class _HeaderProfileAvatar extends StatelessWidget {
-  const _HeaderProfileAvatar({required this.initials});
+  const _HeaderProfileAvatar({
+    required this.initials,
+    this.avatarUrl = '',
+  });
 
   final String initials;
+  final String avatarUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -329,15 +337,34 @@ class _HeaderProfileAvatar extends StatelessWidget {
               ),
             ],
           ),
-          child: Center(
-            child: Text(
-              initials,
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: responsive.rz(16),
-              ),
-            ),
+          child: ClipOval(
+            child: avatarUrl.isNotEmpty
+                ? Image.network(
+                    avatarUrl,
+                    width: size,
+                    height: size,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Center(
+                      child: Text(
+                        initials,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: responsive.rz(16),
+                        ),
+                      ),
+                    ),
+                  )
+                : Center(
+                    child: Text(
+                      initials,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: responsive.rz(16),
+                      ),
+                    ),
+                  ),
           ),
         ),
         Positioned(

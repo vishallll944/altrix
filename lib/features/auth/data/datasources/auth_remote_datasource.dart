@@ -209,7 +209,38 @@ class AuthRemoteDataSource {
     );
 
     final payload = unwrapApiPayload(data);
-    return payload['avatarUrl'] as String? ?? payload['avatar'] as String?;
+    final clientMap = payload['client'] is Map<String, dynamic>
+        ? payload['client'] as Map<String, dynamic>
+        : (payload['patient'] is Map<String, dynamic>
+            ? payload['patient'] as Map<String, dynamic>
+            : const <String, dynamic>{});
+    final rawUrl = readString(
+      payload,
+      [
+        'avatarUrl',
+        'avatar_url',
+        'avatar',
+        'image',
+        'imageUrl',
+        'image_url',
+        'photoUrl',
+        'photo_url',
+        'url',
+      ],
+      fallback: readString(clientMap, [
+        'avatarUrl',
+        'avatar_url',
+        'avatar',
+        'image',
+        'imageUrl',
+        'image_url',
+        'photoUrl',
+        'photo_url',
+        'url',
+      ]),
+    );
+
+    return rawUrl.isNotEmpty ? resolveMediaUrl(rawUrl) : null;
   }
 }
 

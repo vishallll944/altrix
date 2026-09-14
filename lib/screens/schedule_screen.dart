@@ -8,6 +8,8 @@ import '../features/patient/data/models/patient_models.dart';
 import '../features/patient/presentation/providers/patient_providers.dart';
 import '../theme/app_colors.dart';
 import '../widgets/appointment_actions.dart';
+import '../features/patient/presentation/screens/appointment_editor_screen.dart';
+import '../features/patient/presentation/widgets/appointment_management_actions.dart';
 import '../widgets/empty_state_card.dart';
 
 class ScheduleScreen extends ConsumerWidget {
@@ -55,7 +57,14 @@ class ScheduleScreen extends ConsumerWidget {
                   ),
                   data: (appointments) => RefreshIndicator(
                     color: AppColors.primary,
-                    onRefresh: () async => ref.invalidate(appointmentsProvider),
+                    onRefresh: () async {
+                      ref.invalidate(appointmentsProvider);
+                      try {
+                        await ref.read(appointmentsProvider.future);
+                      } catch (_) {
+                        // The provider renders the refresh error with a retry action.
+                      }
+                    },
                     child: ListView(
                       padding: responsive.pagePadding.copyWith(
                         top: responsive.rz(12),
@@ -69,12 +78,15 @@ class ScheduleScreen extends ConsumerWidget {
                           SizedBox(height: responsive.rz(24)),
                           _SectionTitle(
                             title: 'Scheduled visits',
-                            subtitle: 'Tap Join Zoom when it is time for your session',
+                            subtitle:
+                                'Manage your visits or join your video session',
                           ),
                           SizedBox(height: responsive.rz(14)),
                           for (var i = 0; i < appointments.length; i++)
                             Padding(
-                              padding: EdgeInsets.only(bottom: responsive.rz(14)),
+                              padding: EdgeInsets.only(
+                                bottom: responsive.rz(14),
+                              ),
                               child: _AppointmentCard(
                                 appointment: appointments[i],
                                 isNext: i == 0,
@@ -83,8 +95,7 @@ class ScheduleScreen extends ConsumerWidget {
                         ] else
                           const EmptyStateCard(
                             title: 'No appointments yet',
-                            message:
-                                'When you book a visit, it will appear here with date, provider, and join details.',
+                            message: 'When you book a visit, it will appear here with date, provider, and join details.',
                             icon: Icons.event_busy_outlined,
                           ),
                       ],
@@ -158,10 +169,7 @@ class _GlowOrb extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
-      ),
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
     );
   }
 }
@@ -175,7 +183,7 @@ class _ScheduleHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final responsive = context.responsive;
 
-    return Row(
+    final heading = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
@@ -245,14 +253,23 @@ class _ScheduleHeader extends StatelessWidget {
         ),
       ],
     );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        heading,
+        SizedBox(height: responsive.rz(16)),
+        FilledButton.icon(
+          onPressed: () => openAppointmentEditor(context),
+          icon: const Icon(Icons.add_rounded),
+          label: const Text('Book appointment'),
+        ),
+      ],
+    );
   }
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({
-    required this.title,
-    required this.subtitle,
-  });
+  const _SectionTitle({required this.title, required this.subtitle});
 
   final String title;
   final String subtitle;
@@ -306,11 +323,7 @@ class _ScheduleSummaryCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF12103A),
-            Color(0xFF1C1858),
-            Color(0xFF221A6A),
-          ],
+          colors: [Color(0xFF12103A), Color(0xFF1C1858), Color(0xFF221A6A)],
         ),
         boxShadow: [
           BoxShadow(
@@ -463,10 +476,7 @@ class _SummaryStatTile extends StatelessWidget {
 }
 
 class _AppointmentCard extends StatelessWidget {
-  const _AppointmentCard({
-    required this.appointment,
-    this.isNext = false,
-  });
+  const _AppointmentCard({required this.appointment, this.isNext = false});
 
   final AppointmentModel appointment;
   final bool isNext;
@@ -475,18 +485,20 @@ class _AppointmentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final responsive = context.responsive;
     final dateParts = _AppointmentDateParts.from(appointment);
-    final accentColor =
-        appointment.isVirtual ? AppColors.primary : AppColors.mood5;
+    final accentColor = appointment.isVirtual
+        ? AppColors.primary
+        : AppColors.mood5;
     final statusStyle = _statusStyle(appointment.status);
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {},
         borderRadius: BorderRadius.circular(responsive.rz(22)),
         child: Ink(
           decoration: BoxDecoration(
-            color: isNext ? accentColor.withValues(alpha: 0.05) : AppColors.surface,
+            color: isNext
+                ? accentColor.withValues(alpha: 0.05)
+                : AppColors.surface,
             borderRadius: BorderRadius.circular(responsive.rz(22)),
             border: Border.all(
               color: isNext
@@ -543,33 +555,23 @@ class _AppointmentCard extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _DateBadge(
-                      dateParts: dateParts,
-                      accentColor: accentColor,
-                    ),
+                    _DateBadge(dateParts: dateParts, accentColor: accentColor),
                     SizedBox(width: responsive.rz(14)),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  appointment.title,
-                                  style: responsiveTextStyle(
-                                    context,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(width: responsive.rz(8)),
-                              _StatusBadge(style: statusStyle),
-                            ],
+                          Text(
+                            appointment.title,
+                            style: responsiveTextStyle(
+                              context,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary,
+                            ),
                           ),
+                          SizedBox(height: responsive.rz(8)),
+                          _StatusBadge(style: statusStyle),
                           SizedBox(height: responsive.rz(8)),
                           _InfoRow(
                             icon: Icons.person_outline_rounded,
@@ -642,7 +644,8 @@ class _AppointmentCard extends StatelessWidget {
                         ],
                       ),
                       child: FilledButton.icon(
-                        onPressed: () => openAppointmentJoin(context, appointment),
+                        onPressed: () =>
+                            openAppointmentJoin(context, appointment),
                         style: FilledButton.styleFrom(
                           backgroundColor: Colors.transparent,
                           shadowColor: Colors.transparent,
@@ -651,7 +654,7 @@ class _AppointmentCard extends StatelessWidget {
                         ),
                         icon: const Icon(Icons.videocam_rounded, size: 18),
                         label: const Text(
-                          'Join Zoom',
+                          'Join visit',
                           style: TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
@@ -678,6 +681,7 @@ class _AppointmentCard extends StatelessWidget {
                     ),
                   ),
                 ],
+                AppointmentManagementActions(appointment: appointment),
               ],
             ),
           ),
@@ -688,10 +692,7 @@ class _AppointmentCard extends StatelessWidget {
 }
 
 class _DateBadge extends StatelessWidget {
-  const _DateBadge({
-    required this.dateParts,
-    required this.accentColor,
-  });
+  const _DateBadge({required this.dateParts, required this.accentColor});
 
   final _AppointmentDateParts dateParts;
   final Color accentColor;
@@ -881,6 +882,18 @@ _StatusStyle _statusStyle(String status) {
         label: 'Completed',
         background: AppColors.border,
         foreground: AppColors.textSecondary,
+      );
+    case 'pending':
+      return _StatusStyle(
+        label: 'Pending confirmation',
+        background: AppColors.primaryMuted,
+        foreground: AppColors.primary,
+      );
+    case 'reschedule_requested':
+      return _StatusStyle(
+        label: 'Reschedule requested',
+        background: AppColors.primaryMuted,
+        foreground: AppColors.primary,
       );
     case 'scheduled':
       return _StatusStyle(

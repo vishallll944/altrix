@@ -91,5 +91,31 @@ void main() {
 
       expect(response.client.name, 'vishal');
     });
+
+    test('parses avatarUrl from image field and resolves relative url', () {
+      final response = ProfileResponse.fromJson({
+        'success': true,
+        'data': {
+          'client': {
+            'id': 'cmtid3p9a0001qfwmb0suk5i9',
+            'name': 'vishal',
+            'email': 'vishal@mindaptix.com',
+            'phone': '7591033162',
+            'image':
+                '/uploads/client-avatars/cmtid3p9a0001qfwmb0suk5i9.webp?v=1789377565395',
+          },
+        },
+      });
+
+      expect(
+        response.client.avatarUrl,
+        'https://altrixs.com/uploads/client-avatars/cmtid3p9a0001qfwmb0suk5i9.webp?v=1789377565395',
+      );
+      final entity = response.client.toEntity();
+      expect(
+        entity.avatarUrl,
+        'https://altrixs.com/uploads/client-avatars/cmtid3p9a0001qfwmb0suk5i9.webp?v=1789377565395',
+      );
+    });
   });
 }

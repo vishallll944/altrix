@@ -67,25 +67,24 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: EdgeInsets.fromLTRB(
-          responsive.rz(20),
-          responsive.rz(24),
-          responsive.rz(20),
-          responsive.rz(28),
+      builder: (ctx) => Material(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(responsive.rz(24)),
         ),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(responsive.rz(24)),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            responsive.rz(20),
+            responsive.rz(24),
+            responsive.rz(20),
+            responsive.rz(28),
           ),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               Text(
                 'Change Profile Photo',
                 style: responsiveTextStyle(
@@ -184,8 +183,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Future<void> _pickAndUploadImage(ImageSource source) async {
     try {
@@ -387,19 +387,35 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             child: CircleAvatar(
                               radius: responsive.rz(46),
                               backgroundColor: AppColors.primary,
-                              backgroundImage: (user?.avatarUrl.isNotEmpty ?? false)
-                                  ? NetworkImage(user!.avatarUrl)
-                                  : null,
-                              child: (user?.avatarUrl.isNotEmpty ?? false)
-                                  ? null
-                                  : Text(
-                                      _initials(user?.name ?? 'Patient'),
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: responsive.rz(28),
+                              child: ClipOval(
+                                child: (user?.avatarUrl.isNotEmpty ?? false)
+                                    ? Image.network(
+                                        user!.avatarUrl,
+                                        width: responsive.rz(92),
+                                        height: responsive.rz(92),
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) => Center(
+                                          child: Text(
+                                            _initials(user?.name ?? 'Patient'),
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: responsive.rz(28),
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    : Center(
+                                        child: Text(
+                                          _initials(user?.name ?? 'Patient'),
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: responsive.rz(28),
+                                          ),
+                                        ),
                                       ),
-                                    ),
+                              ),
                             ),
                           ),
                           if (_uploadingAvatar)

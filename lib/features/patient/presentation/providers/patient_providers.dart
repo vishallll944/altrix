@@ -55,6 +55,33 @@ final doctorAvailabilityProvider = FutureProvider.autoDispose
   return ref.watch(patientRepositoryProvider).getDoctorAvailability(doctorId: doctorId);
 });
 
+typedef AppointmentSlotQuery = ({String doctorId, String date});
+
+final appointmentSlotsProvider = FutureProvider.autoDispose
+    .family<List<AvailabilitySlotModel>, AppointmentSlotQuery>((
+      ref,
+      query,
+    ) async {
+      final slots = await ref
+          .watch(patientRepositoryProvider)
+          .getDoctorAvailability(
+            doctorId: query.doctorId,
+            from: query.date,
+            days: 1,
+          );
+      return slots
+          .where(
+            (slot) =>
+                slot.date == query.date &&
+                slot.isAvailable &&
+                RegExp(r'^\d{2}:\d{2}$').hasMatch(slot.startTime) &&
+                RegExp(r'^\d{2}:\d{2}$').hasMatch(slot.endTime) &&
+                slot.endTime.compareTo(slot.startTime) > 0,
+          )
+          .toList()
+        ..sort((a, b) => a.startTime.compareTo(b.startTime));
+    });
+
 final telehealthSessionProvider = FutureProvider.autoDispose
     .family<TelehealthSessionModel, String>((ref, joinToken) async {
   return ref.watch(patientRepositoryProvider).getTelehealthSession(joinToken);

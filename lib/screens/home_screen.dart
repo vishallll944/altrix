@@ -91,7 +91,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final responsive = context.responsive;
-    final userName = ref.watch(authProvider).user?.name.trim() ?? '';
+    final user = ref.watch(authProvider).user;
+    final userName = user?.name.trim() ?? '';
+    final avatarUrl = user?.avatarUrl ?? '';
     final dashboardAsync = ref.watch(dashboardProvider);
     final appointmentsAsync = ref.watch(appointmentsProvider);
     final progressAsync = ref.watch(progressProvider);
@@ -116,6 +118,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       greeting: _greeting,
                       userName: userName,
                       initials: _initials(userName),
+                      avatarUrl: avatarUrl,
+                      onAvatarTap: widget.onNavigateToTab != null
+                          ? () => widget.onNavigateToTab!(3)
+                          : null,
                       unreadNotifications: dashboardAsync.valueOrNull?.unreadNotifications ?? 0,
                     ),
                     SizedBox(height: responsive.rz(22)),
@@ -264,12 +270,16 @@ class _Header extends StatelessWidget {
     required this.greeting,
     required this.userName,
     required this.initials,
+    this.avatarUrl = '',
+    this.onAvatarTap,
     this.unreadNotifications = 0,
   });
 
   final String greeting;
   final String userName;
   final String initials;
+  final String avatarUrl;
+  final VoidCallback? onAvatarTap;
   final int unreadNotifications;
 
   @override
@@ -332,7 +342,11 @@ class _Header extends StatelessWidget {
               ),
             ),
             SizedBox(width: responsive.rz(12)),
-            _ProfileAvatar(initials: initials),
+            _ProfileAvatar(
+              initials: initials,
+              avatarUrl: avatarUrl,
+              onTap: onAvatarTap,
+            ),
           ],
         ),
       ],
@@ -491,16 +505,22 @@ class _TodayDateChip extends StatelessWidget {
 }
 
 class _ProfileAvatar extends StatelessWidget {
-  const _ProfileAvatar({required this.initials});
+  const _ProfileAvatar({
+    required this.initials,
+    this.avatarUrl = '',
+    this.onTap,
+  });
 
   final String initials;
+  final String avatarUrl;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final responsive = context.responsive;
     final size = responsive.rz(52);
 
-    return Container(
+    final avatar = Container(
       width: size + 6,
       height: size + 6,
       padding: const EdgeInsets.all(3),
@@ -521,16 +541,45 @@ class _ProfileAvatar extends StatelessWidget {
       ),
       child: CircleAvatar(
         backgroundColor: AppColors.primary,
-        child: Text(
-          initials,
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
-            fontSize: responsive.rz(16),
-          ),
+        child: ClipOval(
+          child: avatarUrl.isNotEmpty
+              ? Image.network(
+                  avatarUrl,
+                  width: size,
+                  height: size,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Center(
+                    child: Text(
+                      initials,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: responsive.rz(16),
+                      ),
+                    ),
+                  ),
+                )
+              : Center(
+                  child: Text(
+                    initials,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: responsive.rz(16),
+                    ),
+                  ),
+                ),
         ),
       ),
     );
+
+    if (onTap != null) {
+      return GestureDetector(
+        onTap: onTap,
+        child: avatar,
+      );
+    }
+    return avatar;
   }
 }
 
