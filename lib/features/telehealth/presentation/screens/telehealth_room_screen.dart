@@ -9,6 +9,7 @@ import '../../../../theme/app_colors.dart';
 import '../../../patient/data/models/patient_models.dart';
 import '../../../patient/presentation/providers/patient_providers.dart';
 
+import '../../data/services/telehealth_permission_service.dart';
 import 'in_app_zoom_meeting_screen.dart';
 
 class TelehealthRoomScreen extends ConsumerStatefulWidget {
@@ -71,7 +72,7 @@ class _TelehealthRoomScreenState extends ConsumerState<TelehealthRoomScreen> {
     }
   }
 
-  void _enterVideoCall(String url) {
+  Future<void> _enterVideoCall(String url) async {
     final appointment = widget.appointment;
     if (appointment != null && appointment.isTooEarlyToJoin()) {
       final timeStr = appointment.timeLabel.isNotEmpty
@@ -100,6 +101,9 @@ class _TelehealthRoomScreenState extends ConsumerState<TelehealthRoomScreen> {
       );
       return;
     }
+
+    final hasPermissions = await TelehealthPermissionService.requestCameraAndMicrophone(context);
+    if (!hasPermissions || !mounted) return;
 
     final effectiveUrl = url.trim().isNotEmpty
         ? url.trim()

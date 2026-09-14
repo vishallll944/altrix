@@ -442,4 +442,94 @@ void main() {
     expect(find.text('Telehealth Lobby'), findsOneWidget);
     expect(find.textContaining("You can't join the meeting yet"), findsNothing);
   });
+
+  testWidgets('openAppointmentJoin blocks entry when camera/mic permission is denied',
+      (tester) async {
+    final appt = AppointmentModel.fromJson(const {
+      'id': 'appt-test-perm-denied',
+      'title': 'Therapy Session',
+      'date': '2026-09-14',
+      'startTime': '15:00',
+      'endTime': '15:50',
+      'isVirtual': true,
+      'joinToken': 'token-perm-denied',
+      'joinUrl': 'https://zoom.us/j/1234567890',
+    });
+
+    final testNow = DateTime(2026, 9, 14, 14, 58);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () => openAppointmentJoin(
+                context,
+                appt,
+                currentTime: testNow,
+                permissionRequester: () async => false, // User denies camera/mic
+              ),
+              child: const Text('Join Zoom Visit'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Join Zoom Visit'));
+    await tester.pumpAndSettle();
+
+    // Did not open Telehealth Lobby because permission was not granted
+    expect(find.text('Telehealth Lobby'), findsNothing);
+  });
+
+  testWidgets('openAppointmentJoin proceeds when camera/mic permission is granted',
+      (tester) async {
+    final appt = AppointmentModel.fromJson(const {
+      'id': 'appt-test-perm-granted',
+      'title': 'Therapy Session',
+      'date': '2026-09-14',
+      'startTime': '15:00',
+      'endTime': '15:50',
+      'isVirtual': true,
+      'joinToken': 'token-perm-granted',
+      'joinUrl': 'https://zoom.us/j/1234567890',
+    });
+
+    final testNow = DateTime(2026, 9, 14, 14, 58);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          telehealthSessionProvider('token-perm-granted').overrideWith(
+            (ref) async => TelehealthSessionModel.fromJson(const {
+              'provider': 'Altrix WebRTC',
+              'status': 'waiting',
+            }),
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => openAppointmentJoin(
+                  context,
+                  appt,
+                  currentTime: testNow,
+                  permissionRequester: () async => true, // User grants camera/mic
+                ),
+                child: const Text('Join Zoom Visit'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Join Zoom Visit'));
+    await tester.pumpAndSettle();
+
+    // Successfully opened Telehealth Lobby
+    expect(find.text('Telehealth Lobby'), findsOneWidget);
+  });
 }

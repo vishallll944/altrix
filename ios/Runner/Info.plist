@@ -9,6 +9,10 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Altrix requires camera access for virtual telehealth consultations and video visits with your doctor.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Altrix requires microphone access so you can speak with your healthcare provider during video consultations.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

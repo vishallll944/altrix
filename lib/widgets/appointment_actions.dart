@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../features/patient/data/models/patient_models.dart';
-
+import '../features/telehealth/data/services/telehealth_permission_service.dart';
 import '../features/telehealth/presentation/screens/telehealth_room_screen.dart';
 
 Future<void> openAppointmentJoin(
   BuildContext context,
   AppointmentModel appointment, {
   DateTime? currentTime,
+  Future<bool> Function()? permissionRequester,
 }) async {
   if (appointment.isTooEarlyToJoin(currentTime)) {
     final timeStr = appointment.timeLabel.isNotEmpty
@@ -62,6 +63,13 @@ Future<void> openAppointmentJoin(
     );
     return;
   }
+
+  // Request Camera & Microphone permissions before opening video room
+  final hasPermissions = await TelehealthPermissionService.requestCameraAndMicrophone(
+    context,
+    overrideRequester: permissionRequester,
+  );
+  if (!hasPermissions || !context.mounted) return;
 
   if (appointment.joinToken.isNotEmpty || appointment.effectiveJoinUrl.isNotEmpty) {
     Navigator.of(context).push(
