@@ -32,7 +32,8 @@ class SecurityPreferences {
   }) {
     return SecurityPreferences(
       autoLockMinutes: autoLockMinutes ?? this.autoLockMinutes,
-      emergencyAccessEnabled: emergencyAccessEnabled ?? this.emergencyAccessEnabled,
+      emergencyAccessEnabled:
+          emergencyAccessEnabled ?? this.emergencyAccessEnabled,
       analyticsOptIn: analyticsOptIn ?? this.analyticsOptIn,
     );
   }
@@ -58,8 +59,8 @@ class SecurityPreferences {
 
 final securityPreferencesProvider =
     NotifierProvider<SecurityPreferencesNotifier, SecurityPreferences>(
-  SecurityPreferencesNotifier.new,
-);
+      SecurityPreferencesNotifier.new,
+    );
 
 class SecurityPreferencesNotifier extends Notifier<SecurityPreferences> {
   @override
@@ -68,7 +69,9 @@ class SecurityPreferencesNotifier extends Notifier<SecurityPreferences> {
     return SecurityPreferences.fromPrefs(prefs);
   }
 
-  Future<void> update(SecurityPreferences Function(SecurityPreferences current) fn) async {
+  Future<void> update(
+    SecurityPreferences Function(SecurityPreferences current) fn,
+  ) async {
     final updated = fn(state);
     state = updated;
     final prefs = ref.read(sharedPreferencesProvider);
@@ -80,7 +83,10 @@ class SecurityPreferencesNotifier extends Notifier<SecurityPreferences> {
 class PrivacySecurityScreen extends ConsumerWidget {
   const PrivacySecurityScreen({super.key});
 
-  Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+  Future<void> _confirmDeleteAccount(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -102,7 +108,10 @@ class PrivacySecurityScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -143,7 +152,11 @@ class PrivacySecurityScreen extends ConsumerWidget {
     }
   }
 
-  void _showNoticeDialog(BuildContext context, {required String title, required String body}) {
+  void _showNoticeDialog(
+    BuildContext context, {
+    required String title,
+    required String body,
+  }) {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -155,13 +168,20 @@ class PrivacySecurityScreen extends ConsumerWidget {
         content: SingleChildScrollView(
           child: Text(
             body,
-            style: const TextStyle(fontSize: 13.5, height: 1.45, color: AppColors.textPrimary),
+            style: const TextStyle(
+              fontSize: 13.5,
+              height: 1.45,
+              color: AppColors.textPrimary,
+            ),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Close', style: TextStyle(fontWeight: FontWeight.w700)),
+            child: const Text(
+              'Close',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -172,52 +192,79 @@ class PrivacySecurityScreen extends ConsumerWidget {
     final currentTz = ref.read(usaTimezoneProvider);
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       backgroundColor: Colors.white,
       builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                child: Text(
-                  'Select USA Timezone',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
-                child: Text(
-                  'All appointments, check-ins, and reminders will display according to this US timezone.',
-                  style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
-                ),
-              ),
-              const SizedBox(height: 12),
-              ...UsaTimezone.values.map((tz) {
-                final isSelected = tz == currentTz;
-                return ListTile(
-                  title: Text(
-                    tz.displayName,
-                    style: TextStyle(
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected ? AppColors.primary : AppColors.textPrimary,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(ctx).height * 0.82,
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  trailing: isSelected
-                      ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
-                      : null,
-                  onTap: () {
-                    ref.read(usaTimezoneProvider.notifier).setTimezone(tz);
-                    Navigator.of(ctx).pop();
-                  },
-                );
-              }),
-            ],
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                  child: Text(
+                    'Select USA Timezone',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    'All appointments, check-ins, and reminders will display according to this US timezone.',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...UsaTimezone.values.map((tz) {
+                  final isSelected = tz == currentTz;
+                  return ListTile(
+                    title: Text(
+                      tz.displayName,
+                      style: TextStyle(
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.textPrimary,
+                      ),
+                    ),
+                    trailing: isSelected
+                        ? const Icon(
+                            Icons.check_circle_rounded,
+                            color: AppColors.primary,
+                          )
+                        : null,
+                    onTap: () {
+                      ref.read(usaTimezoneProvider.notifier).setTimezone(tz);
+                      Navigator.of(ctx).pop();
+                    },
+                  );
+                }),
+              ],
+            ),
           ),
         ),
       ),
@@ -233,9 +280,7 @@ class PrivacySecurityScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Privacy & Security'),
-      ),
+      appBar: AppBar(title: const Text('Privacy & Security')),
       body: SafeArea(
         child: ResponsiveCenter(
           child: ListView(
@@ -306,7 +351,10 @@ class PrivacySecurityScreen extends ConsumerWidget {
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.mood5.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(12),
@@ -359,7 +407,8 @@ class PrivacySecurityScreen extends ConsumerWidget {
                           width: responsive.rz(38),
                           height: responsive.rz(38),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                            color: const Color(0xFF6366F1)
+                                .withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
@@ -395,7 +444,10 @@ class PrivacySecurityScreen extends ConsumerWidget {
                         DropdownButton<int>(
                           value: securityPrefs.autoLockMinutes,
                           underline: const SizedBox.shrink(),
-                          icon: const Icon(Icons.arrow_drop_down, color: AppColors.primary),
+                          icon: const Icon(
+                            Icons.arrow_drop_down,
+                            color: AppColors.primary,
+                          ),
                           style: const TextStyle(
                             color: AppColors.primary,
                             fontWeight: FontWeight.w700,
@@ -403,14 +455,25 @@ class PrivacySecurityScreen extends ConsumerWidget {
                           ),
                           onChanged: (val) {
                             if (val != null) {
-                              notifier.update((curr) => curr.copyWith(autoLockMinutes: val));
+                              notifier.update(
+                                (curr) => curr.copyWith(autoLockMinutes: val),
+                              );
                             }
                           },
                           items: const [
-                            DropdownMenuItem(value: 0, child: Text('Immediately')),
+                            DropdownMenuItem(
+                              value: 0,
+                              child: Text('Immediately'),
+                            ),
                             DropdownMenuItem(value: 1, child: Text('1 minute')),
-                            DropdownMenuItem(value: 5, child: Text('5 minutes')),
-                            DropdownMenuItem(value: 15, child: Text('15 minutes')),
+                            DropdownMenuItem(
+                              value: 5,
+                              child: Text('5 minutes'),
+                            ),
+                            DropdownMenuItem(
+                              value: 15,
+                              child: Text('15 minutes'),
+                            ),
                           ],
                         ),
                       ],
@@ -423,7 +486,10 @@ class PrivacySecurityScreen extends ConsumerWidget {
                     title: 'Two-Factor Authentication (2FA)',
                     subtitle: 'Active for ${user?.email ?? "your email"}',
                     trailing: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.mood5.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
@@ -459,7 +525,10 @@ class PrivacySecurityScreen extends ConsumerWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.primary.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
@@ -474,7 +543,11 @@ class PrivacySecurityScreen extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(width: 4),
-                        const Icon(Icons.chevron_right, size: 20, color: AppColors.textSecondary),
+                        const Icon(
+                          Icons.chevron_right,
+                          size: 20,
+                          color: AppColors.textSecondary,
+                        ),
                       ],
                     ),
                     onTap: () => _showTimezonePicker(context, ref),
@@ -495,7 +568,8 @@ class PrivacySecurityScreen extends ConsumerWidget {
                     icon: Icons.medical_services_outlined,
                     iconColor: AppColors.primary,
                     title: 'Care Team Access',
-                    subtitle: 'Your designated clinician and care managers only',
+                    subtitle:
+                        'Your designated clinician and care managers only',
                     trailing: const Icon(
                       Icons.check_circle_outline_rounded,
                       color: AppColors.mood5,
@@ -505,8 +579,7 @@ class PrivacySecurityScreen extends ConsumerWidget {
                       _showNoticeDialog(
                         context,
                         title: 'Care Team Access',
-                        body:
-                            'Under HIPAA guidelines, only healthcare providers and clinical support staff assigned to your care plan can access your check-in history, notes, and appointment records.\n\nYour data is never sold or shared with advertisers.',
+                        body: 'Under HIPAA guidelines, only healthcare providers and clinical support staff assigned to your care plan can access your check-in history, notes, and appointment records.\n\nYour data is never sold or shared with advertisers.',
                       );
                     },
                   ),
@@ -554,23 +627,32 @@ class PrivacySecurityScreen extends ConsumerWidget {
 
                       try {
                         final appointments =
-                            ref.read(appointmentsProvider).valueOrNull ?? const [];
+                            ref.read(appointmentsProvider).valueOrNull ??
+                            const [];
                         final checkIns =
                             ref.read(checkInsProvider).valueOrNull ?? const [];
                         final progress = ref.read(progressProvider).valueOrNull;
 
-                        final cleanName = (user?.name.trim().isNotEmpty ?? false)
-                            ? user!.name.trim().replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')
+                        final cleanName =
+                            (user?.name.trim().isNotEmpty ?? false)
+                            ? user!.name.trim().replaceAll(
+                                RegExp(r'[^a-zA-Z0-9]'),
+                                '_',
+                              )
                             : 'Patient';
-                        final dateStr = DateTime.now().toIso8601String().substring(0, 10);
-                        final filename = 'Altrix_Medical_Summary_${cleanName}_$dateStr.pdf';
+                        final dateStr = DateTime.now()
+                            .toIso8601String()
+                            .substring(0, 10);
+                        final filename =
+                            'Altrix_Medical_Summary_${cleanName}_$dateStr.pdf';
 
-                        final pdfBytes = await MedicalSummaryPdfService.generatePdf(
-                          user: user,
-                          appointments: appointments,
-                          checkIns: checkIns,
-                          progress: progress,
-                        );
+                        final pdfBytes =
+                            await MedicalSummaryPdfService.generatePdf(
+                              user: user,
+                              appointments: appointments,
+                              checkIns: checkIns,
+                              progress: progress,
+                            );
 
                         // Save file locally for download
                         await MedicalSummaryPdfService.savePdfBytes(
@@ -584,11 +666,20 @@ class PrivacySecurityScreen extends ConsumerWidget {
                             backgroundColor: const Color(0xFF202124),
                             behavior: SnackBarBehavior.floating,
                             elevation: 10,
-                            margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 16,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
-                              side: const BorderSide(color: Color(0xFF3C4043), width: 1),
+                              side: const BorderSide(
+                                color: Color(0xFF3C4043),
+                                width: 1,
+                              ),
                             ),
                             duration: const Duration(seconds: 7),
                             content: InkWell(
@@ -622,7 +713,8 @@ class PrivacySecurityScreen extends ConsumerWidget {
                                   Expanded(
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           filename,
@@ -659,10 +751,11 @@ class PrivacySecurityScreen extends ConsumerWidget {
                                       messenger.hideCurrentSnackBar();
                                       Navigator.of(context).push(
                                         MaterialPageRoute(
-                                          builder: (_) => PdfSummaryViewerScreen(
-                                            pdfBytes: pdfBytes,
-                                            filename: filename,
-                                          ),
+                                          builder: (_) =>
+                                              PdfSummaryViewerScreen(
+                                                pdfBytes: pdfBytes,
+                                                filename: filename,
+                                              ),
                                         ),
                                       );
                                     },
@@ -698,13 +791,13 @@ class PrivacySecurityScreen extends ConsumerWidget {
                     icon: Icons.description_outlined,
                     iconColor: const Color(0xFF3B82F6),
                     title: 'Notice of Privacy Practices',
-                    subtitle: 'How Altrix Health protects your PHI and HIPAA rights',
+                    subtitle:
+                        'How Altrix Health protects your PHI and HIPAA rights',
                     onTap: () {
                       _showNoticeDialog(
                         context,
                         title: 'Notice of Privacy Practices',
-                        body:
-                            'This notice describes how medical information about you may be used and disclosed and how you can get access to this information.\n\n1. Uses and Disclosures: We use your health information for treatment, payment, and health care operations.\n\n2. Your Rights: You have the right to inspect and copy your health records, request restrictions on disclosures, and receive an accounting of disclosures.\n\n3. Security Safeguards: All data in Altrix is protected by strict technical, physical, and administrative safeguards required by HIPAA.',
+                        body: 'This notice describes how medical information about you may be used and disclosed and how you can get access to this information.\n\n1. Uses and Disclosures: We use your health information for treatment, payment, and health care operations.\n\n2. Your Rights: You have the right to inspect and copy your health records, request restrictions on disclosures, and receive an accounting of disclosures.\n\n3. Security Safeguards: All data in Altrix is protected by strict technical, physical, and administrative safeguards required by HIPAA.',
                       );
                     },
                   ),
@@ -718,8 +811,7 @@ class PrivacySecurityScreen extends ConsumerWidget {
                       _showNoticeDialog(
                         context,
                         title: 'Terms of Service',
-                        body:
-                            'By using Altrix, you agree to comply with our patient terms of service. Telehealth sessions are conducted via encrypted audio/video channels adhering to state licensing and medical practice requirements.',
+                        body: 'By using Altrix, you agree to comply with our patient terms of service. Telehealth sessions are conducted via encrypted audio/video channels adhering to state licensing and medical practice requirements.',
                       );
                     },
                   ),
@@ -732,7 +824,9 @@ class PrivacySecurityScreen extends ConsumerWidget {
                 color: AppColors.surface,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
-                  side: BorderSide(color: AppColors.badge.withValues(alpha: 0.3)),
+                  side: BorderSide(
+                    color: AppColors.badge.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: ListTile(
                   contentPadding: EdgeInsets.symmetric(

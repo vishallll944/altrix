@@ -20,10 +20,7 @@ void main() {
         'lastMessageAt': '2026-09-10T10:30:00Z',
         'unreadCount': 2,
         'topic': 'Medical',
-        'participant': {
-          'name': 'Dr. Sarah Jenkins',
-          'role': 'Psychiatrist',
-        },
+        'participant': {'name': 'Dr. Sarah Jenkins', 'role': 'Psychiatrist'},
       });
 
       expect(conversation.effectiveName, 'Dr. Sarah Jenkins');
@@ -31,30 +28,47 @@ void main() {
       expect(conversation.unreadCount, 2);
     });
 
-    test('MessageModel isFromMe correctly distinguishes patient vs clinician', () {
-      final myMessage = MessageModel.fromJson({
-        'id': 'msg-1',
-        'body': 'Hello Dr. Jenkins',
-        'sender': 'patient',
-        'createdAt': '2026-09-10T10:30:00Z',
-      });
+    test(
+      'MessageModel isFromMe correctly distinguishes patient vs clinician',
+      () {
+        final myMessage = MessageModel.fromJson({
+          'id': 'msg-1',
+          'body': 'Hello Dr. Jenkins',
+          'sender': 'patient',
+          'createdAt': '2026-09-10T10:30:00Z',
+        });
 
-      final docMessage = MessageModel.fromJson({
-        'id': 'msg-2',
-        'body': 'Hello Vishal, how are you feeling today?',
-        'sender': 'clinician',
-        'senderName': 'Dr. Sarah Jenkins',
-        'createdAt': '2026-09-10T10:31:00Z',
-      });
+        final docMessage = MessageModel.fromJson({
+          'id': 'msg-2',
+          'body': 'Hello Vishal, how are you feeling today?',
+          'sender': 'clinician',
+          'senderName': 'Dr. Sarah Jenkins',
+          'createdAt': '2026-09-10T10:31:00Z',
+        });
 
-      expect(myMessage.isFromMe(currentUserId: 'user-1', currentUserName: 'Vishal'), isTrue);
-      expect(docMessage.isFromMe(currentUserId: 'user-1', currentUserName: 'Vishal'), isFalse);
-      expect(docMessage.senderName, 'Dr. Sarah Jenkins');
-    });
+        expect(
+          myMessage.isFromMe(
+            currentUserId: 'user-1',
+            currentUserName: 'Vishal',
+          ),
+          isTrue,
+        );
+        expect(
+          docMessage.isFromMe(
+            currentUserId: 'user-1',
+            currentUserName: 'Vishal',
+          ),
+          isFalse,
+        );
+        expect(docMessage.senderName, 'Dr. Sarah Jenkins');
+      },
+    );
   });
 
   group('MessagesScreen Widget UI', () {
-    testWidgets('MessagesScreen displays user name and profile icon', (tester) async {
+    testWidgets('MessagesScreen displays user name and profile icon', (
+      tester,
+    ) async {
       await tester.binding.setSurfaceSize(const Size(390, 844));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -77,11 +91,11 @@ void main() {
         ProviderScope(
           overrides: [
             authProvider.overrideWith(() => _FakeAuthNotifier(testUser)),
-            conversationsProvider.overrideWith((ref) async => [fakeConversation]),
+            conversationsProvider.overrideWith(
+              (ref) async => [fakeConversation],
+            ),
           ],
-          child: const MaterialApp(
-            home: MessagesScreen(),
-          ),
+          child: const MaterialApp(home: MessagesScreen()),
         ),
       );
 
@@ -94,75 +108,74 @@ void main() {
       expect(find.text('VS'), findsOneWidget);
       // Verify Live indicator is shown
       expect(find.text('Live Secure Chat'), findsOneWidget);
-      // Verify chat person is commented out and only the "No messages yet" card is displayed
+      // Verify chat person is commented out and only the "No chats" card is displayed
       expect(find.text('Dr. Sarah Jenkins'), findsNothing);
-      expect(find.text('No messages yet'), findsOneWidget);
-      expect(find.text('No chat messages. When your care team or clinician sends you a message, it will appear here.'), findsOneWidget);
-    });
-
-    testWidgets('ConversationDetailScreen renders participant profile icon and messages', (tester) async {
-      await tester.binding.setSurfaceSize(const Size(390, 844));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-
-      final testUser = const User(
-        id: 'user-1',
-        name: 'Vishal',
-        email: 'vishal@mindaptix.com',
-        phone: '1234567890',
-      );
-
-      final fakeRepo = _FakePatientChatRepo([
-        MessageModel.fromJson({
-          'id': 'msg-1',
-          'body': 'Welcome Vishal! How can I assist you?',
-          'sender': 'clinician',
-          'senderName': 'Dr. Sarah Jenkins',
-          'createdAt': '2026-09-10T09:00:00Z',
-          'isRead': true,
-        }),
-      ]);
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            authProvider.overrideWith(() => _FakeAuthNotifier(testUser)),
-            patientRepositoryProvider.overrideWithValue(fakeRepo),
-          ],
-          child: const MaterialApp(
-            home: ConversationDetailScreen(
-              conversationId: 'conv-1',
-              title: 'Dr. Sarah Jenkins',
-              participantName: 'Dr. Sarah Jenkins',
-            ),
-          ),
-        ),
-      );
-
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      // Verify participant name and avatar initial in AppBar
-      expect(find.text('Dr. Sarah Jenkins'), findsWidgets);
-      expect(find.text('DJ'), findsWidgets);
-      expect(find.text('Active now · Real-time encrypted'), findsOneWidget);
-
-      // Verify incoming message body
-      expect(find.text('Welcome Vishal! How can I assist you?'), findsOneWidget);
-
-      // Verify typing and sending a message works
-      await tester.enterText(find.byType(TextField), 'I need to check my appointment');
-      await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
-      await tester.pump();
-
-      // Optimistic message should immediately appear in chat ListView
+      expect(find.text('No chats'), findsOneWidget);
       expect(
-        find.descendant(
-          of: find.byType(ListView),
-          matching: find.text('I need to check my appointment'),
+        find.text(
+          'No chats available. When your care team or clinician sends you a message, it will appear here.',
         ),
         findsOneWidget,
       );
     });
+
+    testWidgets(
+      'ConversationDetailScreen renders participant profile icon and no chats message',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(390, 844));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        final testUser = const User(
+          id: 'user-1',
+          name: 'Vishal',
+          email: 'vishal@mindaptix.com',
+          phone: '1234567890',
+        );
+
+        final fakeRepo = _FakePatientChatRepo([
+          MessageModel.fromJson({
+            'id': 'msg-1',
+            'body': 'Welcome Vishal! How can I assist you?',
+            'sender': 'clinician',
+            'senderName': 'Dr. Sarah Jenkins',
+            'createdAt': '2026-09-10T09:00:00Z',
+            'isRead': true,
+          }),
+        ]);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              authProvider.overrideWith(() => _FakeAuthNotifier(testUser)),
+              patientRepositoryProvider.overrideWithValue(fakeRepo),
+            ],
+            child: const MaterialApp(
+              home: ConversationDetailScreen(
+                conversationId: 'conv-1',
+                title: 'Dr. Sarah Jenkins',
+                participantName: 'Dr. Sarah Jenkins',
+              ),
+            ),
+          ),
+        );
+
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        // Verify participant name and avatar initial in AppBar
+        expect(find.text('Dr. Sarah Jenkins'), findsWidgets);
+        expect(find.text('DJ'), findsWidgets);
+        expect(find.text('Active now · Real-time encrypted'), findsOneWidget);
+
+        // Verify chat messages are commented out and "No chats" message is shown
+        expect(find.text('No chats'), findsOneWidget);
+        expect(find.text('No chats available.'), findsOneWidget);
+        expect(
+          find.text('Welcome Vishal! How can I assist you?'),
+          findsNothing,
+        );
+      },
+    );
   });
 }
 
@@ -213,8 +226,7 @@ class _FakePatientChatRepo implements PatientRepository {
   Stream<Map<String, dynamic>> streamLiveMessages({
     required String threadId,
     required String token,
-  }) =>
-      const Stream.empty();
+  }) => const Stream.empty();
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

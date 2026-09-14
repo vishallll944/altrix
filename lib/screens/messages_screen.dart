@@ -10,6 +10,7 @@ import '../features/patient/data/models/patient_models.dart';
 import '../features/patient/presentation/providers/patient_providers.dart';
 import '../theme/app_colors.dart';
 import '../widgets/empty_state_card.dart';
+
 // import 'conversation_detail_screen.dart';
 
 class MessagesScreen extends ConsumerStatefulWidget {
@@ -79,7 +80,9 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                   loading: () => const Center(
                     child: Padding(
                       padding: EdgeInsets.symmetric(vertical: 40),
-                      child: InlineLoadingCard(label: 'Connecting to live messages...'),
+                      child: InlineLoadingCard(
+                        label: 'Connecting to live messages...',
+                      ),
                     ),
                   ),
                   error: (error, _) => InlineErrorCard(
@@ -111,12 +114,17 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                             ),
                             const SizedBox(width: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                                color: const Color(0xFF10B981)
+                                    .withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: const Color(0xFF10B981).withValues(alpha: 0.25),
+                                  color: const Color(0xFF10B981)
+                                      .withValues(alpha: 0.25),
                                 ),
                               ),
                               child: const Row(
@@ -150,8 +158,8 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                           ),
                         */
                         const EmptyStateCard(
-                          title: 'No messages yet',
-                          message: 'No chat messages. When your care team or clinician sends you a message, it will appear here.',
+                          title: 'No chats',
+                          message: 'No chats available. When your care team or clinician sends you a message, it will appear here.',
                           icon: Icons.chat_bubble_outline_rounded,
                         ),
                       ],
@@ -216,10 +224,7 @@ class _UserHeader extends StatelessWidget {
       child: Row(
         children: [
           // Profile Avatar Icon with online indicator
-          _HeaderProfileAvatar(
-            initials: initials,
-            avatarUrl: avatarUrl,
-          ),
+          _HeaderProfileAvatar(initials: initials, avatarUrl: avatarUrl),
           SizedBox(width: responsive.rz(12)),
           Expanded(
             child: Column(
@@ -285,7 +290,9 @@ class _UserHeader extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.primaryWash,
               shape: BoxShape.circle,
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.15),
+              ),
             ),
             child: const Icon(
               Icons.lock_outline_rounded,
@@ -300,10 +307,7 @@ class _UserHeader extends StatelessWidget {
 }
 
 class _HeaderProfileAvatar extends StatelessWidget {
-  const _HeaderProfileAvatar({
-    required this.initials,
-    this.avatarUrl = '',
-  });
+  const _HeaderProfileAvatar({required this.initials, this.avatarUrl = ''});
 
   final String initials;
   final String avatarUrl;
@@ -406,7 +410,9 @@ class _MessagesStatsRow extends StatelessWidget {
         Expanded(
           child: _StatCard(
             label: unreadTotal > 0 ? '$unreadTotal unread' : 'All caught up',
-            icon: unreadTotal > 0 ? Icons.mark_email_unread_rounded : Icons.done_all_rounded,
+            icon: unreadTotal > 0
+                ? Icons.mark_email_unread_rounded
+                : Icons.done_all_rounded,
             highlight: unreadTotal > 0,
           ),
         ),
@@ -434,7 +440,9 @@ class _StatCard extends StatelessWidget {
         color: highlight ? AppColors.primaryWash : AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: highlight ? AppColors.primary.withValues(alpha: 0.28) : AppColors.border,
+          color: highlight
+              ? AppColors.primary.withValues(alpha: 0.28)
+              : AppColors.border,
         ),
       ),
       child: Row(
@@ -511,7 +519,9 @@ class ConversationTile extends StatelessWidget {
                             conversation.effectiveName,
                             style: TextStyle(
                               fontSize: 15.5,
-                              fontWeight: hasUnread ? FontWeight.w800 : FontWeight.w700,
+                              fontWeight: hasUnread
+                                  ? FontWeight.w800
+                                  : FontWeight.w700,
                               color: AppColors.textPrimary,
                             ),
                             maxLines: 1,
@@ -523,8 +533,12 @@ class ConversationTile extends StatelessWidget {
                             timeStr,
                             style: TextStyle(
                               fontSize: 12,
-                              fontWeight: hasUnread ? FontWeight.w700 : FontWeight.w500,
-                              color: hasUnread ? AppColors.primary : AppColors.textTertiary,
+                              fontWeight: hasUnread
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: hasUnread
+                                  ? AppColors.primary
+                                  : AppColors.textTertiary,
                             ),
                           ),
                       ],
@@ -541,15 +555,22 @@ class ConversationTile extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 13.5,
-                              fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w400,
-                              color: hasUnread ? AppColors.textPrimary : AppColors.textSecondary,
+                              fontWeight: hasUnread
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                              color: hasUnread
+                                  ? AppColors.textPrimary
+                                  : AppColors.textSecondary,
                             ),
                           ),
                         ),
                         if (hasUnread) ...[
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.primary,
                               borderRadius: BorderRadius.circular(12),

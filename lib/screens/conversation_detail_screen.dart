@@ -30,7 +30,8 @@ class ConversationDetailScreen extends ConsumerStatefulWidget {
       ConversationDetailScreenState();
 }
 
-class ConversationDetailScreenState extends ConsumerState<ConversationDetailScreen> {
+class ConversationDetailScreenState
+    extends ConsumerState<ConversationDetailScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _focusNode = FocusNode();
@@ -79,18 +80,15 @@ class ConversationDetailScreenState extends ConsumerState<ConversationDetailScre
       try {
         _sseSubscription = ref
             .read(patientRepositoryProvider)
-            .streamLiveMessages(
-              threadId: widget.conversationId,
-              token: token,
-            )
+            .streamLiveMessages(threadId: widget.conversationId, token: token)
             .listen(
               (payload) {
                 if (!mounted) return;
                 final messageMap = payload['message'] is Map<String, dynamic>
                     ? payload['message'] as Map<String, dynamic>
                     : (payload['data'] is Map<String, dynamic>
-                        ? payload['data'] as Map<String, dynamic>
-                        : payload);
+                          ? payload['data'] as Map<String, dynamic>
+                          : payload);
                 if (messageMap['id'] != null) {
                   final incoming = MessageModel.fromJson(messageMap);
                   _mergeLiveMessages([incoming]);
@@ -165,12 +163,17 @@ class ConversationDetailScreenState extends ConsumerState<ConversationDetailScre
     if (incoming.isEmpty && _messages.isEmpty) return;
 
     final existingIds = _messages.map((m) => m.id).toSet();
-    final newItems = incoming.where((m) => !existingIds.contains(m.id)).toList();
+    final newItems = incoming
+        .where((m) => !existingIds.contains(m.id))
+        .toList();
 
-    if (newItems.isNotEmpty || incoming.length != _messages.where((m) => !m.isPending).length) {
+    if (newItems.isNotEmpty ||
+        incoming.length != _messages.where((m) => !m.isPending).length) {
       final existingConfirmedBodies = incoming.map((m) => m.body).toSet();
       final pendingMessages = _messages
-          .where((m) => m.isPending && !existingConfirmedBodies.contains(m.body))
+          .where(
+            (m) => m.isPending && !existingConfirmedBodies.contains(m.body),
+          )
           .toList();
       setState(() {
         _messages = [...incoming, ...pendingMessages];
@@ -191,7 +194,10 @@ class ConversationDetailScreenState extends ConsumerState<ConversationDetailScre
             currentUserId: currentUserId,
             currentUserName: currentUserName,
           )) {
-        ref.read(patientRepositoryProvider).markMessageRead(message.id).catchError((_) {});
+        ref
+            .read(patientRepositoryProvider)
+            .markMessageRead(message.id)
+            .catchError((_) {});
       }
     }
   }
@@ -236,10 +242,9 @@ class ConversationDetailScreenState extends ConsumerState<ConversationDetailScre
     _scrollToBottom();
 
     try {
-      final confirmed = await ref.read(patientRepositoryProvider).sendMessage(
-            conversationId: widget.conversationId,
-            message: text,
-          );
+      final confirmed = await ref
+          .read(patientRepositoryProvider)
+          .sendMessage(conversationId: widget.conversationId, message: text);
       if (!mounted) return;
       setState(() {
         final index = _messages.indexWhere((m) => m.id == tempId);
@@ -289,7 +294,9 @@ class ConversationDetailScreenState extends ConsumerState<ConversationDetailScre
     final user = ref.watch(authProvider).user;
     final currentUserId = user?.id;
     final currentUserName = user?.name;
-    final displayName = widget.participantName.isNotEmpty ? widget.participantName : widget.title;
+    final displayName = widget.participantName.isNotEmpty
+        ? widget.participantName
+        : widget.title;
     final initials = _participantInitials(displayName);
 
     return Scaffold(
@@ -420,7 +427,20 @@ class ConversationDetailScreenState extends ConsumerState<ConversationDetailScre
               ],
             ),
           ),
-          // Chat Messages List
+          // Chat Messages List - commented out to show No chats message
+          const Expanded(
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: EmptyStateCard(
+                  title: 'No chats',
+                  message: 'No chats available.',
+                  icon: Icons.chat_bubble_outline_rounded,
+                ),
+              ),
+            ),
+          ),
+          /*
           Expanded(
             child: _isLoading
                 ? const Center(
@@ -479,6 +499,7 @@ class ConversationDetailScreenState extends ConsumerState<ConversationDetailScre
                             },
                           ),
           ),
+          */
           // Bottom Message Input Bar
           SafeArea(
             top: false,
@@ -601,7 +622,9 @@ class _ChatMessageBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
-        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isMe
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           // If message is from clinician/other user, show their profile avatar icon
@@ -636,8 +659,9 @@ class _ChatMessageBubble extends StatelessWidget {
           ],
           Flexible(
             child: Column(
-              crossAxisAlignment:
-                  isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isMe
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 if (!isMe)
                   Padding(
@@ -681,8 +705,9 @@ class _ChatMessageBubble extends StatelessWidget {
                     ],
                   ),
                   child: Column(
-                    crossAxisAlignment:
-                        isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                    crossAxisAlignment: isMe
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.start,
                     children: [
                       Text(
                         message.body,
@@ -764,8 +789,18 @@ class _DateDivider extends StatelessWidget {
       return 'Yesterday';
     }
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[dt.month - 1]} ${dt.day}';
   }

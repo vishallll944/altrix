@@ -51,7 +51,8 @@ class AppointmentModel {
     final type = readString(json, ['type', 'visitType', 'visit_type', 'title']);
     final virtualFlag = readBool(json, ['isVirtual', 'is_virtual', 'virtual']);
     final typeLower = type.toLowerCase();
-    final isVirtual = virtualFlag ||
+    final isVirtual =
+        virtualFlag ||
         typeLower.contains('virtual') ||
         typeLower.contains('telehealth') ||
         typeLower.contains('video');
@@ -65,7 +66,12 @@ class AppointmentModel {
       'time_label',
     ]);
     final endTime = readString(json, ['endTime', 'end_time']);
-    final startsAt = readString(json, ['startsAt', 'starts_at', 'scheduledAt', 'scheduled_at']);
+    final startsAt = readString(json, [
+      'startsAt',
+      'starts_at',
+      'scheduledAt',
+      'scheduled_at',
+    ]);
     final endsAt = readString(json, ['endsAt', 'ends_at']);
     final sortDateTime = _parseSortDateTime(
       startsAt: startsAt,
@@ -97,21 +103,41 @@ class AppointmentModel {
       dateLabel: formattedDate,
       timeLabel: formattedStart,
       endTimeLabel: formattedEnd,
-      visitType: isVirtual ? 'Video visit' : 'In-person visit',
+      visitType: isVirtual ? 'Video duration' : 'In-person visit',
       duration: _formatDuration(
         startTime: startTime,
         endTime: endTime,
-        fallback: readString(json, ['duration', 'durationLabel'], fallback: '50 min'),
+        fallback: readString(json, [
+          'duration',
+          'durationLabel',
+        ], fallback: '50 min'),
       ),
       isVirtual: isVirtual,
       status: readString(json, ['status', 'state'], fallback: 'scheduled'),
-      joinToken: readString(json, ['joinToken', 'join_token', 'telehealthToken']),
-      joinUrl: readString(json, ['joinUrl', 'join_url', 'meetingUrl', 'meeting_url']),
-      location: readString(json, ['location', 'address', 'clinicName', 'clinic_name']),
+      joinToken: readString(json, [
+        'joinToken',
+        'join_token',
+        'telehealthToken',
+      ]),
+      joinUrl: readString(json, [
+        'joinUrl',
+        'join_url',
+        'meetingUrl',
+        'meeting_url',
+      ]),
+      location: readString(json, [
+        'location',
+        'address',
+        'clinicName',
+        'clinic_name',
+      ]),
       note: readString(json, ['note', 'notes', 'reason']),
       sortDateTime: sortDateTime,
-      endDateTime: endSortDateTime ??
-          (sortDateTime != null ? sortDateTime.add(const Duration(minutes: 50)) : null),
+      endDateTime:
+          endSortDateTime ??
+          (sortDateTime != null
+              ? sortDateTime.add(const Duration(minutes: 50))
+              : null),
       raw: json,
     );
   }
@@ -122,7 +148,12 @@ class AppointmentModel {
     }
     if (dateLabel.isNotEmpty) return dateLabel;
     if (timeLabel.isNotEmpty) return timeLabel;
-    return readString(raw, ['startsAt', 'starts_at', 'scheduledAt', 'scheduled_at']);
+    return readString(raw, [
+      'startsAt',
+      'starts_at',
+      'scheduledAt',
+      'scheduled_at',
+    ]);
   }
 
   String get subtitleLine {
@@ -169,13 +200,18 @@ class AppointmentModel {
   );
 
   bool get canManage {
-    final start = DateTime.tryParse(readString(raw, ['startsAt', 'starts_at'])) ??
+    final start =
+        DateTime.tryParse(readString(raw, ['startsAt', 'starts_at'])) ??
         sortDateTime;
     return id.isNotEmpty &&
         start != null &&
         start.isAfter(DateTime.now()) &&
-        const {'pending', 'confirmed', 'scheduled', 'reschedule_requested'}
-            .contains(status.toLowerCase());
+        const {
+          'pending',
+          'confirmed',
+          'scheduled',
+          'reschedule_requested',
+        }.contains(status.toLowerCase());
   }
 
   /// Whether the appointment is joinable at [currentTime] (defaults to DateTime.now()).
@@ -217,7 +253,12 @@ String _readNestedName(Map<String, dynamic> json, List<String> keys) {
   for (final key in keys) {
     final value = json[key];
     if (value is Map<String, dynamic>) {
-      final name = readString(value, ['name', 'fullName', 'full_name', 'title']);
+      final name = readString(value, [
+        'name',
+        'fullName',
+        'full_name',
+        'title',
+      ]);
       if (name.isNotEmpty) return name;
     }
   }
@@ -232,8 +273,10 @@ DateTime? _parseSortDateTime({
   final normalizedDate = date.contains('T') ? date.split('T').first : date;
   if (normalizedDate.isNotEmpty && startTime.isNotEmpty) {
     // Also support 12-hour AM/PM times e.g. "10:00 AM" or "02:30 PM"
-    final clockMatch = RegExp(r'^(\d{1,2}):(\d{2})\s*(AM|PM)?$', caseSensitive: false)
-        .firstMatch(startTime.trim());
+    final clockMatch = RegExp(
+      r'^(\d{1,2}):(\d{2})\s*(AM|PM)?$',
+      caseSensitive: false,
+    ).firstMatch(startTime.trim());
     if (clockMatch != null) {
       var hour = int.tryParse(clockMatch.group(1)!);
       final minute = int.tryParse(clockMatch.group(2)!);
@@ -275,14 +318,23 @@ String _formatDateLabel(DateTime? sortDateTime, String rawDate) {
 String _formatTimeLabel(String rawTime, DateTime? fallbackDateTime) {
   final trimmed = rawTime.trim();
   if (trimmed.isNotEmpty) {
-    if (RegExp(r'^\d{1,2}:\d{2}\s*(?:AM|PM)$', caseSensitive: false).hasMatch(trimmed)) {
+    if (RegExp(
+      r'^\d{1,2}:\d{2}\s*(?:AM|PM)$',
+      caseSensitive: false,
+    ).hasMatch(trimmed)) {
       return trimmed;
     }
-    final clockMatch = RegExp(r'^(\d{1,2}):(\d{2})(?::\d{2})?$').firstMatch(trimmed);
+    final clockMatch = RegExp(r'^(\d{1,2}):(\d{2})(?::\d{2})?$')
+        .firstMatch(trimmed);
     if (clockMatch != null) {
       final hour = int.tryParse(clockMatch.group(1)!);
       final minute = int.tryParse(clockMatch.group(2)!);
-      if (hour != null && minute != null && hour >= 0 && hour < 24 && minute >= 0 && minute < 60) {
+      if (hour != null &&
+          minute != null &&
+          hour >= 0 &&
+          hour < 24 &&
+          minute >= 0 &&
+          minute < 60) {
         final period = hour >= 12 ? 'PM' : 'AM';
         final hour12 = hour % 12 == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
         return '$hour12:${minute.toString().padLeft(2, '0')} $period';
@@ -434,18 +486,46 @@ class ConversationModel {
       const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       return weekdays[dt.weekday - 1];
     }
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${months[dt.month - 1]} ${dt.day}';
   }
 
   factory ConversationModel.fromJson(Map<String, dynamic> json) {
-    final participant = json['participant'] ?? json['clinician'] ?? json['doctor'] ?? json['user'];
+    final participant =
+        json['participant'] ??
+        json['clinician'] ??
+        json['doctor'] ??
+        json['user'];
     var pName = '';
     var pAvatar = '';
     var pRole = '';
     if (participant is Map<String, dynamic>) {
-      pName = readString(participant, ['name', 'fullName', 'full_name', 'title']);
-      pAvatar = readString(participant, ['avatar', 'avatarUrl', 'avatar_url', 'imageUrl', 'photoUrl']);
+      pName = readString(participant, [
+        'name',
+        'fullName',
+        'full_name',
+        'title',
+      ]);
+      pAvatar = readString(participant, [
+        'avatar',
+        'avatarUrl',
+        'avatar_url',
+        'imageUrl',
+        'photoUrl',
+      ]);
       pRole = readString(participant, ['role', 'title', 'specialty']);
     }
 
@@ -477,11 +557,18 @@ class ConversationModel {
         'updated_at',
         'time',
       ]),
-      unreadCount: readInt(json, ['unreadCount', 'unread_count', 'unread']) ?? 0,
+      unreadCount:
+          readInt(json, ['unreadCount', 'unread_count', 'unread']) ?? 0,
       topic: readString(json, ['topic', 'category']),
       avatarUrl: pAvatar.isNotEmpty
           ? pAvatar
-          : readString(json, ['avatar', 'avatarUrl', 'avatar_url', 'imageUrl', 'photoUrl']),
+          : readString(json, [
+              'avatar',
+              'avatarUrl',
+              'avatar_url',
+              'imageUrl',
+              'photoUrl',
+            ]),
       participantName: pName,
       participantRole: pRole.isNotEmpty
           ? pRole
@@ -556,12 +643,15 @@ class MessageModel {
       'user_id',
       'authorId',
     ]);
-    if (currentUserId != null && currentUserId.isNotEmpty && rawSenderId.isNotEmpty) {
+    if (currentUserId != null &&
+        currentUserId.isNotEmpty &&
+        rawSenderId.isNotEmpty) {
       if (rawSenderId == currentUserId) return true;
     }
     if (currentUserName != null && currentUserName.isNotEmpty) {
       if (senderName.isNotEmpty &&
-          senderName.toLowerCase().trim() == currentUserName.toLowerCase().trim()) {
+          senderName.toLowerCase().trim() ==
+              currentUserName.toLowerCase().trim()) {
         return true;
       }
     }
@@ -569,7 +659,9 @@ class MessageModel {
   }
 
   String get initials {
-    final name = senderName.isNotEmpty ? senderName : (sender.isNotEmpty ? sender : 'CT');
+    final name = senderName.isNotEmpty
+        ? senderName
+        : (sender.isNotEmpty ? sender : 'CT');
     final parts = name.trim().split(RegExp(r'\s+'));
     if (parts.length == 1) {
       return parts.first.isNotEmpty ? parts.first[0].toUpperCase() : 'C';
@@ -598,7 +690,13 @@ class MessageModel {
     if (senderRaw is Map<String, dynamic>) {
       senderStr = readString(senderRaw, ['role', 'type', 'id', 'name']);
       sName = readString(senderRaw, ['name', 'fullName', 'full_name', 'title']);
-      sAvatar = readString(senderRaw, ['avatar', 'avatarUrl', 'avatar_url', 'imageUrl', 'photoUrl']);
+      sAvatar = readString(senderRaw, [
+        'avatar',
+        'avatarUrl',
+        'avatar_url',
+        'imageUrl',
+        'photoUrl',
+      ]);
     } else if (senderRaw is String) {
       senderStr = senderRaw;
     }
@@ -636,7 +734,12 @@ class MessageModel {
       sender: senderStr,
       senderName: sName,
       senderAvatar: sAvatar,
-      createdAt: readString(json, ['createdAt', 'created_at', 'sentAt', 'sent_at']),
+      createdAt: readString(json, [
+        'createdAt',
+        'created_at',
+        'sentAt',
+        'sent_at',
+      ]),
       isRead: readBool(json, ['isRead', 'is_read', 'read'], fallback: true),
       raw: json,
     );
@@ -689,10 +792,20 @@ class DashboardItem {
   final bool isUnread;
 
   factory DashboardItem.fromJson(Map<String, dynamic> json) {
-    final isRead = readBool(json, ['isRead', 'is_read', 'read'], fallback: true);
+    final isRead = readBool(json, [
+      'isRead',
+      'is_read',
+      'read',
+    ], fallback: true);
     return DashboardItem(
       title: readString(json, ['title', 'subject', 'name', 'label']),
-      body: readString(json, ['body', 'message', 'text', 'preview', 'description']),
+      body: readString(json, [
+        'body',
+        'message',
+        'text',
+        'preview',
+        'description',
+      ]),
       time: readString(json, [
         'time',
         'createdAt',
@@ -777,10 +890,13 @@ class DashboardModel {
   factory DashboardModel.fromJson(Map<String, dynamic> json) {
     final payload = unwrapApiPayload(json);
     final stats = payload['stats'];
-    final statsMap = stats is Map<String, dynamic> ? stats : const <String, dynamic>{};
+    final statsMap = stats is Map<String, dynamic>
+        ? stats
+        : const <String, dynamic>{};
     final profile = payload['profile'];
-    final profileMap =
-        profile is Map<String, dynamic> ? profile : const <String, dynamic>{};
+    final profileMap = profile is Map<String, dynamic>
+        ? profile
+        : const <String, dynamic>{};
     final todayCheckIn = payload['todayCheckIn'] ?? payload['today_check_in'];
     final todayMap = todayCheckIn is Map<String, dynamic>
         ? todayCheckIn
@@ -789,13 +905,15 @@ class DashboardModel {
     final latestMap = latestScores is Map<String, dynamic>
         ? latestScores
         : const <String, dynamic>{};
-    final weeklyProgress = payload['weeklyProgress'] ?? payload['weekly_progress'];
+    final weeklyProgress =
+        payload['weeklyProgress'] ?? payload['weekly_progress'];
     final weeklyMap = weeklyProgress is Map<String, dynamic>
         ? weeklyProgress
         : const <String, dynamic>{};
     final safetyPlan = payload['safetyPlan'] ?? payload['safety_plan'];
-    final safetyMap =
-        safetyPlan is Map<String, dynamic> ? safetyPlan : const <String, dynamic>{};
+    final safetyMap = safetyPlan is Map<String, dynamic>
+        ? safetyPlan
+        : const <String, dynamic>{};
 
     AppointmentModel? next;
     final nextJson = payload['nextAppointment'] ?? payload['next_appointment'];
@@ -805,7 +923,11 @@ class DashboardModel {
 
     final upcoming = extractListFromPayload(
       payload,
-      keys: const ['upcomingAppointments', 'upcoming_appointments', 'appointments'],
+      keys: const [
+        'upcomingAppointments',
+        'upcoming_appointments',
+        'appointments',
+      ],
     ).map(AppointmentModel.fromJson).toList();
 
     if (next == null && upcoming.isNotEmpty) {
@@ -835,7 +957,8 @@ class DashboardModel {
       reminders: effectiveReminders,
       notifications: notifications,
       pendingTasks: pendingTasks,
-      unreadMessages: readInt(payload, [
+      unreadMessages:
+          readInt(payload, [
             'unreadMessageCount',
             'unreadMessages',
             'unread_messages',
@@ -844,20 +967,32 @@ class DashboardModel {
           0,
       unreadNotifications:
           readInt(payload, ['unreadNotifications', 'unread_notifications']) ??
-              readInt(statsMap, ['unreadNotifications', 'unread_notifications']) ??
-              notifications.where((item) => item.isUnread).length,
-      pendingForms: readInt(payload, ['pendingForms', 'formsDue', 'forms_due']) ??
+          readInt(statsMap, ['unreadNotifications', 'unread_notifications']) ??
+          notifications.where((item) => item.isUnread).length,
+      pendingForms:
+          readInt(payload, ['pendingForms', 'formsDue', 'forms_due']) ??
           readInt(statsMap, ['pendingForms', 'formsDue', 'forms_due']) ??
           pendingTasks.length,
-      upcomingAppointmentsCount: readInt(
-            payload,
-            ['upcomingAppointmentsCount', 'upcoming_appointments_count', 'appointmentsCount'],
-          ) ??
-          readInt(statsMap, ['upcomingAppointmentsCount', 'appointmentsCount']) ??
+      upcomingAppointmentsCount:
+          readInt(payload, [
+            'upcomingAppointmentsCount',
+            'upcoming_appointments_count',
+            'appointmentsCount',
+          ]) ??
+          readInt(statsMap, [
+            'upcomingAppointmentsCount',
+            'appointmentsCount',
+          ]) ??
           upcoming.length,
       clinicName: readString(payload, ['clinicName', 'clinic_name', 'clinic']),
-      headline: readString(payload, ['headline', 'welcomeMessage', 'welcome_message', 'greeting']),
-      checkInStreak: readInt(profileMap, ['checkInStreak', 'check_in_streak']) ?? 0,
+      headline: readString(payload, [
+        'headline',
+        'welcomeMessage',
+        'welcome_message',
+        'greeting',
+      ]),
+      checkInStreak:
+          readInt(profileMap, ['checkInStreak', 'check_in_streak']) ?? 0,
       todayCheckInCompleted: readBool(todayMap, ['completed', 'done']),
       todayMood: readDouble(todayMap, ['mood']),
       todayStress: readDouble(todayMap, ['stress']),
@@ -868,8 +1003,14 @@ class DashboardModel {
       weeklyCheckInsCompleted:
           readInt(weeklyMap, ['checkInsCompleted', 'check_ins_completed']) ?? 0,
       weeklyAverageMood: readDouble(weeklyMap, ['averageMood', 'average_mood']),
-      weeklyAverageStress: readDouble(weeklyMap, ['averageStress', 'average_stress']),
-      weeklyAverageSleep: readDouble(weeklyMap, ['averageSleep', 'average_sleep']),
+      weeklyAverageStress: readDouble(weeklyMap, [
+        'averageStress',
+        'average_stress',
+      ]),
+      weeklyAverageSleep: readDouble(weeklyMap, [
+        'averageSleep',
+        'average_sleep',
+      ]),
       recommendedWellnessTool: readString(payload, [
         'recommendedWellnessTool',
         'recommended_wellness_tool',
@@ -926,26 +1067,27 @@ class ProgressModel {
     final payload = unwrapApiPayload(json);
     final nested = payload['progress'];
     final weekly = payload['weekly'];
-    final weeklyMap =
-        weekly is Map<String, dynamic> ? weekly : const <String, dynamic>{};
+    final weeklyMap = weekly is Map<String, dynamic>
+        ? weekly
+        : const <String, dynamic>{};
     final source = nested is Map<String, dynamic>
         ? nested
         : weeklyMap.isNotEmpty
-            ? weeklyMap
-            : payload;
+        ? weeklyMap
+        : payload;
 
     final daily = weeklyMap['daily'];
     final moodTrend = daily is List
         ? daily
-            .map((item) {
-              if (item is! Map<String, dynamic>) return null;
-              final mood = item['mood'];
-              if (mood is int) return mood;
-              if (mood is num) return mood.round();
-              return int.tryParse(mood?.toString() ?? '');
-            })
-            .whereType<int>()
-            .toList()
+              .map((item) {
+                if (item is! Map<String, dynamic>) return null;
+                final mood = item['mood'];
+                if (mood is int) return mood;
+                if (mood is num) return mood.round();
+                return int.tryParse(mood?.toString() ?? '');
+              })
+              .whereType<int>()
+              .toList()
         : readIntList(source, [
             'moodTrend',
             'mood_trend',
@@ -956,15 +1098,25 @@ class ProgressModel {
           ]);
 
     final riskLevel = () {
-      final fromRoot = readString(payload, ['riskLevel', 'risk_level', 'risk', 'status']);
+      final fromRoot = readString(payload, [
+        'riskLevel',
+        'risk_level',
+        'risk',
+        'status',
+      ]);
       if (fromRoot.isNotEmpty) return fromRoot;
       return readString(source, ['riskLevel', 'risk_level', 'risk', 'status']);
     }();
 
     return ProgressModel(
-      streak: readInt(payload, ['streak', 'currentStreak', 'current_streak']) ??
+      streak:
+          readInt(payload, ['streak', 'currentStreak', 'current_streak']) ??
           readInt(source, ['streak', 'currentStreak', 'current_streak']),
-      longestStreak: readInt(source, ['longestStreak', 'longest_streak', 'bestStreak']),
+      longestStreak: readInt(source, [
+        'longestStreak',
+        'longest_streak',
+        'bestStreak',
+      ]),
       checkInsCount: readInt(source, [
         'checkInsCompleted',
         'check_ins_completed',
@@ -1029,7 +1181,11 @@ class InvitePreviewModel {
   factory InvitePreviewModel.fromJson(Map<String, dynamic> json) {
     final payload = unwrapApiPayload(json);
     return InvitePreviewModel(
-      valid: readBool(payload, ['valid', 'isValid', 'is_valid'], fallback: json['success'] == true),
+      valid: readBool(payload, [
+        'valid',
+        'isValid',
+        'is_valid',
+      ], fallback: json['success'] == true),
       email: readString(payload, ['email']),
       clinicName: readString(payload, ['clinicName', 'clinic_name', 'clinic']),
       message: readString(payload, ['message', 'error']),
@@ -1055,7 +1211,12 @@ class TelehealthSessionModel {
     final payload = unwrapApiPayload(json);
     return TelehealthSessionModel(
       provider: readString(payload, ['provider', 'platform', 'type']),
-      joinUrl: readString(payload, ['joinUrl', 'join_url', 'url', 'meetingUrl']),
+      joinUrl: readString(payload, [
+        'joinUrl',
+        'join_url',
+        'url',
+        'meetingUrl',
+      ]),
       status: readString(payload, ['status', 'state']),
       raw: payload,
     );
@@ -1090,11 +1251,26 @@ class PatientFormModel {
     final payload = unwrapApiPayload(json);
     return PatientFormModel(
       id: readString(payload, ['id', '_id', 'formId']),
-      title: readString(payload, ['title', 'name', 'formName', 'label'], fallback: 'Form'),
+      title: readString(payload, [
+        'title',
+        'name',
+        'formName',
+        'label',
+      ], fallback: 'Form'),
       status: readString(payload, ['status', 'state'], fallback: 'pending'),
       dueAt: readString(payload, ['dueAt', 'due_at', 'dueDate', 'due_date']),
-      description: readString(payload, ['description', 'instructions', 'body', 'subtitle']),
-      signedAt: readString(payload, ['signedAt', 'signed_at', 'completedAt', 'completed_at']),
+      description: readString(payload, [
+        'description',
+        'instructions',
+        'body',
+        'subtitle',
+      ]),
+      signedAt: readString(payload, [
+        'signedAt',
+        'signed_at',
+        'completedAt',
+        'completed_at',
+      ]),
       raw: payload,
     );
   }
