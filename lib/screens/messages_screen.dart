@@ -10,7 +10,7 @@ import '../features/patient/data/models/patient_models.dart';
 import '../features/patient/presentation/providers/patient_providers.dart';
 import '../theme/app_colors.dart';
 import '../widgets/empty_state_card.dart';
-import 'conversation_detail_screen.dart';
+// import 'conversation_detail_screen.dart';
 
 class MessagesScreen extends ConsumerStatefulWidget {
   const MessagesScreen({super.key});
@@ -87,17 +87,12 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                     onRetry: () => ref.invalidate(conversationsProvider),
                   ),
                   data: (conversations) {
-                    final unreadTotal = conversations.fold<int>(
-                      0,
-                      (sum, item) => sum + item.unreadCount,
-                    );
-
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _MessagesStatsRow(
-                          totalThreads: conversations.length,
-                          unreadTotal: unreadTotal,
+                        const _MessagesStatsRow(
+                          totalThreads: 0,
+                          unreadTotal: 0,
                         ),
                         SizedBox(height: responsive.rz(22)),
                         Row(
@@ -143,21 +138,22 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                           ],
                         ),
                         SizedBox(height: responsive.rz(14)),
-                        if (conversations.isEmpty)
-                          const EmptyStateCard(
-                            title: 'No messages yet',
-                            message: 'When your clinician or clinic sends you a message, it will appear here instantly in real-time.',
-                            icon: Icons.chat_bubble_outline_rounded,
-                          )
-                        else
-                          for (final conversation in conversations)
-                            Padding(
-                              padding: EdgeInsets.only(bottom: responsive.rz(10)),
-                              child: _ConversationTile(
-                                conversation: conversation,
-                                onTap: () => _openThread(context, conversation),
-                              ),
+                        // Chat person list commented out — show no chat message only
+                        /*
+                        for (final conversation in conversations)
+                          Padding(
+                            padding: EdgeInsets.only(bottom: responsive.rz(10)),
+                            child: _ConversationTile(
+                              conversation: conversation,
+                              onTap: () => _openThread(context, conversation),
                             ),
+                          ),
+                        */
+                        const EmptyStateCard(
+                          title: 'No messages yet',
+                          message: 'No chat messages. When your care team or clinician sends you a message, it will appear here.',
+                          icon: Icons.chat_bubble_outline_rounded,
+                        ),
                       ],
                     );
                   },
@@ -170,20 +166,21 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
     );
   }
 
-  void _openThread(BuildContext context, ConversationModel conversation) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ConversationDetailScreen(
-          conversationId: conversation.id,
-          title: conversation.effectiveName,
-          participantName: conversation.participantName.isNotEmpty
-              ? conversation.participantName
-              : conversation.effectiveName,
-          avatarUrl: conversation.avatarUrl,
-        ),
-      ),
-    );
-  }
+  // Commented out with chat person list:
+  // void _openThread(BuildContext context, ConversationModel conversation) {
+  //   Navigator.of(context).push(
+  //     MaterialPageRoute(
+  //       builder: (_) => ConversationDetailScreen(
+  //         conversationId: conversation.id,
+  //         title: conversation.effectiveName,
+  //         participantName: conversation.participantName.isNotEmpty
+  //             ? conversation.participantName
+  //             : conversation.effectiveName,
+  //         avatarUrl: conversation.avatarUrl,
+  //       ),
+  //     ),
+  //   );
+  // }
 }
 
 class _UserHeader extends StatelessWidget {
@@ -464,8 +461,9 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-class _ConversationTile extends StatelessWidget {
-  const _ConversationTile({
+class ConversationTile extends StatelessWidget {
+  const ConversationTile({
+    super.key,
     required this.conversation,
     required this.onTap,
   });

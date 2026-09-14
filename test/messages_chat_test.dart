@@ -94,9 +94,10 @@ void main() {
       expect(find.text('VS'), findsOneWidget);
       // Verify Live indicator is shown
       expect(find.text('Live Secure Chat'), findsOneWidget);
-      // Verify Conversation is rendered with participant name
-      expect(find.text('Dr. Sarah Jenkins'), findsOneWidget);
-      expect(find.text('Let me know if you have questions.'), findsOneWidget);
+      // Verify chat person is commented out and only the "No messages yet" card is displayed
+      expect(find.text('Dr. Sarah Jenkins'), findsNothing);
+      expect(find.text('No messages yet'), findsOneWidget);
+      expect(find.text('No chat messages. When your care team or clinician sends you a message, it will appear here.'), findsOneWidget);
     });
 
     testWidgets('ConversationDetailScreen renders participant profile icon and messages', (tester) async {

@@ -8,43 +8,39 @@ import '../../../../theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../auth/presentation/screens/sign_in_screen.dart';
+import '../../../patient/presentation/providers/patient_providers.dart';
+import '../../data/medical_summary_pdf_service.dart';
 
 /// Persisted privacy and security settings.
 class SecurityPreferences {
   const SecurityPreferences({
-    this.biometricsEnabled = false,
     this.autoLockMinutes = 5,
     this.emergencyAccessEnabled = true,
     this.analyticsOptIn = false,
   });
 
-  final bool biometricsEnabled;
   final int autoLockMinutes;
   final bool emergencyAccessEnabled;
   final bool analyticsOptIn;
 
   SecurityPreferences copyWith({
-    bool? biometricsEnabled,
     int? autoLockMinutes,
     bool? emergencyAccessEnabled,
     bool? analyticsOptIn,
   }) {
     return SecurityPreferences(
-      biometricsEnabled: biometricsEnabled ?? this.biometricsEnabled,
       autoLockMinutes: autoLockMinutes ?? this.autoLockMinutes,
       emergencyAccessEnabled: emergencyAccessEnabled ?? this.emergencyAccessEnabled,
       analyticsOptIn: analyticsOptIn ?? this.analyticsOptIn,
     );
   }
 
-  static const _keyBio = 'sec_pref_biometrics';
   static const _keyAutoLock = 'sec_pref_autolock';
   static const _keyEmergency = 'sec_pref_emergency';
   static const _keyAnalytics = 'sec_pref_analytics';
 
   static SecurityPreferences fromPrefs(SharedPreferences prefs) {
     return SecurityPreferences(
-      biometricsEnabled: prefs.getBool(_keyBio) ?? false,
       autoLockMinutes: prefs.getInt(_keyAutoLock) ?? 5,
       emergencyAccessEnabled: prefs.getBool(_keyEmergency) ?? true,
       analyticsOptIn: prefs.getBool(_keyAnalytics) ?? false,
@@ -52,7 +48,6 @@ class SecurityPreferences {
   }
 
   Future<void> save(SharedPreferences prefs) async {
-    await prefs.setBool(_keyBio, biometricsEnabled);
     await prefs.setInt(_keyAutoLock, autoLockMinutes);
     await prefs.setBool(_keyEmergency, emergencyAccessEnabled);
     await prefs.setBool(_keyAnalytics, analyticsOptIn);
@@ -287,25 +282,14 @@ class PrivacySecurityScreen extends ConsumerWidget {
               ),
               SizedBox(height: responsive.rz(22)),
 
-              // App Lock & Biometrics
+              // App Lock & Access
               _SectionHeader(
                 title: 'Access & Authentication',
-                subtitle: 'Control how your device unlocks the app',
+                subtitle: 'Control app security and timeouts',
               ),
               SizedBox(height: responsive.rz(10)),
               _SettingsGroupCard(
                 children: [
-                  _SecuritySwitchTile(
-                    icon: Icons.fingerprint_rounded,
-                    iconColor: AppColors.primary,
-                    title: 'Biometric Unlock',
-                    subtitle: 'Require Face ID or Fingerprint on app open',
-                    value: securityPrefs.biometricsEnabled,
-                    onChanged: (val) => notifier.update(
-                      (curr) => curr.copyWith(biometricsEnabled: val),
-                    ),
-                  ),
-                  const Divider(height: 1),
                   Padding(
                     padding: EdgeInsets.symmetric(
                       horizontal: responsive.rz(16),
@@ -465,16 +449,69 @@ class PrivacySecurityScreen extends ConsumerWidget {
                     icon: Icons.download_rounded,
                     iconColor: const Color(0xFF22C55E),
                     title: 'Export Medical Summary',
-                    subtitle: 'Download encrypted record of your check-ins & visits',
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                    subtitle: 'Download encrypted record of your check-ins & visits (PDF)',
+                    onTap: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      messenger.showSnackBar(
                         const SnackBar(
-                          content: Text(
-                            'Medical summary export request submitted. A secure link will be sent to your email.',
+                          content: Row(
+                            children: [
+                              SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Text('Generating encrypted Medical Summary PDF...'),
+                              ),
+                            ],
                           ),
+                          duration: Duration(seconds: 2),
                           behavior: SnackBarBehavior.floating,
                         ),
                       );
+
+                      try {
+                        final appointments =
+                            ref.read(appointmentsProvider).valueOrNull ?? const [];
+                        final checkIns =
+                            ref.read(checkInsProvider).valueOrNull ?? const [];
+                        final progress = ref.read(progressProvider).valueOrNull;
+
+                        final savedFile =
+                            await MedicalSummaryPdfService.generateAndDownloadPdf(
+                          user: user,
+                          appointments: appointments,
+                          checkIns: checkIns,
+                          progress: progress,
+                        );
+
+                        messenger.hideCurrentSnackBar();
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              savedFile != null
+                                  ? 'Medical Summary PDF downloaded: ${savedFile.path.split("/").last}'
+                                  : 'Medical Summary PDF downloaded successfully.',
+                            ),
+                            backgroundColor: AppColors.mood5,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      } catch (e) {
+                        messenger.hideCurrentSnackBar();
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text('Failed to generate PDF: $e'),
+                            backgroundColor: AppColors.badge,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
                     },
                   ),
                   const Divider(height: 1),
