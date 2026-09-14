@@ -29,7 +29,7 @@ class Responsive {
 
   double get scale => (width / designWidth).clamp(0.82, 1.35);
 
-  double rz(double value) => value * scale;
+  double rz(num value) => (value * scale).toDouble();
 
   double get maxContentWidth {
     switch (screenType) {
