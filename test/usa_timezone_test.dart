@@ -118,6 +118,31 @@ void main() {
       expect(appt.timeLabel, '2:30 PM');
       expect(appt.dateLabel, contains('Jul 15'));
     });
+
+    test('formatTimeString and DashboardItem.formattedTime converts times to 12-hour format with AM/PM', () {
+      expect(UsaTimezoneService.formatTimeString('14:30'), '2:30 PM');
+      expect(UsaTimezoneService.formatTimeString('09:15'), '9:15 AM');
+      expect(UsaTimezoneService.formatTimeString('00:45'), '12:45 AM');
+      expect(UsaTimezoneService.formatTimeString('12:00'), '12:00 PM');
+      expect(UsaTimezoneService.formatTimeString('2:30 pm'), '2:30 PM');
+      expect(UsaTimezoneService.formatTimeString('08:30 AM'), '8:30 AM');
+
+      const item24 = DashboardItem(
+        title: 'Medication',
+        body: 'Take evening dose',
+        time: '19:45',
+        isUnread: false,
+      );
+      expect(item24.formattedTime, '7:45 PM');
+
+      const itemMorning = DashboardItem(
+        title: 'Check-in',
+        body: 'Morning assessment',
+        time: '08:00',
+        isUnread: true,
+      );
+      expect(itemMorning.formattedTime, '8:00 AM');
+    });
   });
 
   group('USA Timezone in PrivacySecurityScreen', () {

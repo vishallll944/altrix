@@ -2096,10 +2096,10 @@ class _DashboardUpdateTile extends StatelessWidget {
               color: AppColors.textPrimary,
             ),
           ),
-          if (item.time.isNotEmpty) ...[
+          if (item.formattedTime.isNotEmpty) ...[
             SizedBox(height: responsive.rz(4)),
             Text(
-              item.time,
+              item.formattedTime,
               style: responsiveTextStyle(
                 context,
                 fontSize: 12,

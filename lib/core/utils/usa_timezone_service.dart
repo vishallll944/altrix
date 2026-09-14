@@ -236,4 +236,50 @@ class UsaTimezoneService {
     final timeStr = formatTime(dt, timezone: timezone, includeTz: includeTz);
     return '$dayLabel  ·  $timeStr';
   }
+
+  /// Formats any time string (ISO 8601, 24-hour HH:mm, or existing AM/PM)
+  /// into USA standard 12-hour format: `h:mm a` (e.g. `2:30 PM`).
+  static String formatTimeString(
+    String rawTime, {
+    UsaTimezone timezone = UsaTimezone.auto,
+    bool includeTz = false,
+  }) {
+    final trimmed = rawTime.trim();
+    if (trimmed.isEmpty) return '';
+
+    // If it's a full ISO-8601 DateTime string (e.g. 2026-09-14T14:30:00Z or 2026-09-14 14:30:00)
+    final parsedDt = DateTime.tryParse(trimmed) ??
+        DateTime.tryParse(trimmed.replaceAll(' ', 'T'));
+    if (parsedDt != null) {
+      return formatTime(parsedDt, timezone: timezone, includeTz: includeTz);
+    }
+
+    // Already 12-hour AM/PM: e.g. "2:30 PM", "02:30 pm", "10:00 AM"
+    final amPmMatch = RegExp(r'^(\d{1,2}):(\d{2})(?::\d{2})?\s*([AaPp][Mm])$')
+        .firstMatch(trimmed);
+    if (amPmMatch != null) {
+      final hour = int.tryParse(amPmMatch.group(1)!);
+      final minute = amPmMatch.group(2)!;
+      final period = amPmMatch.group(3)!.toUpperCase();
+      if (hour != null) {
+        final hour12 = hour % 12 == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+        return '$hour12:$minute $period';
+      }
+    }
+
+    // 24-hour clock: e.g. "14:30", "14:30:00", "09:15"
+    final clock24Match =
+        RegExp(r'^(\d{1,2}):(\d{2})(?::\d{2})?$').firstMatch(trimmed);
+    if (clock24Match != null) {
+      final hour = int.tryParse(clock24Match.group(1)!);
+      final minute = clock24Match.group(2)!;
+      if (hour != null && hour >= 0 && hour < 24) {
+        final period = hour >= 12 ? 'PM' : 'AM';
+        final hour12 = hour % 12 == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+        return '$hour12:$minute $period';
+      }
+    }
+
+    return trimmed;
+  }
 }

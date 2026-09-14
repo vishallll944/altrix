@@ -710,6 +710,9 @@ class DashboardItem {
     if (title.isNotEmpty && body.isNotEmpty) return '$title — $body';
     return title.isNotEmpty ? title : body;
   }
+
+  /// Returns time formatted in 12-hour format with AM/PM (e.g. `2:30 PM`).
+  String get formattedTime => UsaTimezoneService.formatTimeString(time);
 }
 
 class DashboardModel {
