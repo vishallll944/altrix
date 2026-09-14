@@ -118,8 +118,8 @@ void main() {
     expect(find.text("Today's Wellness"), findsWidgets);
     expect(find.text('8/10'), findsOneWidget);
     expect(find.text('3/10'), findsOneWidget);
-    expect(find.text('7 hrs'), findsOneWidget);
-    expect(find.text('Feeling much better today and rested well.'), findsOneWidget);
+    expect(find.text('Feeling much better today and rested well.'), findsNothing);
+    expect(find.text('Write your journal notes here...'), findsOneWidget);
     expect(find.text('Submit'), findsOneWidget);
   });
 }

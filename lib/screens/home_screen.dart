@@ -83,7 +83,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         initialMood: 8,
         initialStress: 3,
         initialSleep: 7,
-        initialJournal: 'Feeling much better today and rested well.',
+        initialJournal: '',
         onSubmit: _submitCheckIn,
       ),
     );
@@ -1378,7 +1378,7 @@ class _TodaysWellnessSheet extends StatefulWidget {
     required this.initialMood,
     required this.initialStress,
     required this.initialSleep,
-    required this.initialJournal,
+    this.initialJournal = '',
     required this.onSubmit,
   });
 
@@ -1423,9 +1423,7 @@ class _TodaysWellnessSheetState extends State<_TodaysWellnessSheet> {
     if (_isSubmitting) return;
     setState(() => _isSubmitting = true);
     try {
-      final journalText = _journalController.text.trim().isNotEmpty
-          ? _journalController.text.trim()
-          : 'Feeling much better today and rested well.';
+      final journalText = _journalController.text.trim();
       await widget.onSubmit(
         mood: _mood,
         stress: _stress,
