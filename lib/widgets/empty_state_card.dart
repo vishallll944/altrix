@@ -76,11 +76,7 @@ class InlineLoadingCard extends StatelessWidget {
 }
 
 class InlineErrorCard extends StatelessWidget {
-  const InlineErrorCard({
-    super.key,
-    required this.message,
-    this.onRetry,
-  });
+  const InlineErrorCard({super.key, required this.message, this.onRetry});
 
   final String message;
   final VoidCallback? onRetry;
@@ -95,33 +91,40 @@ class InlineErrorCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border),
       ),
-      child: Column(
-        children: [
-          const Icon(Icons.cloud_off_outlined, size: 28, color: AppColors.textTertiary),
-          const SizedBox(height: 10),
-          const Text(
-            'Something went wrong',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+      child: Center(
+        child: Column(
+          children: [
+            const Icon(
+              // Icons.cloud_off_outlined,
+              Icons.message,
+              size: 28,
+              color: AppColors.textTertiary,
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-              height: 1.4,
+            const SizedBox(height: 10),
+            const Text(
+              'No chat',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
             ),
-          ),
-          if (onRetry != null) ...[
-            const SizedBox(height: 12),
-            TextButton(onPressed: onRetry, child: const Text('Try again')),
+            // const SizedBox(height: 4),
+            // Text(
+            //   message,
+            //   textAlign: TextAlign.center,
+            //   style: const TextStyle(
+            //     fontSize: 13,
+            //     color: AppColors.textSecondary,
+            //     height: 1.4,
+            //   ),
+            // ),
+            // if (onRetry != null) ...[
+            //   const SizedBox(height: 12),
+            //   TextButton(onPressed: onRetry, child: const Text('Try again')),
+            // ],
           ],
-        ],
+        ),
       ),
     );
   }
