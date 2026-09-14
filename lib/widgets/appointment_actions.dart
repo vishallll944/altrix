@@ -7,8 +7,62 @@ import '../features/telehealth/presentation/screens/telehealth_room_screen.dart'
 
 Future<void> openAppointmentJoin(
   BuildContext context,
-  AppointmentModel appointment,
-) async {
+  AppointmentModel appointment, {
+  DateTime? currentTime,
+}) async {
+  if (appointment.isTooEarlyToJoin(currentTime)) {
+    final timeStr = appointment.timeLabel.isNotEmpty
+        ? ' (${appointment.timeLabel})'
+        : '';
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.access_time_rounded, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                "You can't join the meeting yet. You can join starting 5 minutes before your scheduled appointment$timeStr.",
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF1E293B),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+    return;
+  }
+
+  if (appointment.isMeetingConcluded(currentTime)) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Row(
+          children: [
+            Icon(Icons.event_busy_rounded, color: Colors.white, size: 20),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'This meeting has already ended.',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF1E293B),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+    return;
+  }
+
   if (appointment.joinToken.isNotEmpty || appointment.effectiveJoinUrl.isNotEmpty) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -21,6 +75,7 @@ Future<void> openAppointmentJoin(
     return;
   }
 
+  ScaffoldMessenger.of(context).hideCurrentSnackBar();
   ScaffoldMessenger.of(context).showSnackBar(
     const SnackBar(
       content: Text('Virtual visit link is not ready yet. Please check closer to your appointment.'),

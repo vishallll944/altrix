@@ -72,6 +72,35 @@ class _TelehealthRoomScreenState extends ConsumerState<TelehealthRoomScreen> {
   }
 
   void _enterVideoCall(String url) {
+    final appointment = widget.appointment;
+    if (appointment != null && appointment.isTooEarlyToJoin()) {
+      final timeStr = appointment.timeLabel.isNotEmpty
+          ? ' (${appointment.timeLabel})'
+          : '';
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.access_time_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  "You can't join the meeting yet. You can join starting 5 minutes before your scheduled appointment$timeStr.",
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF1E293B),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
     final effectiveUrl = url.trim().isNotEmpty
         ? url.trim()
         : (widget.appointment?.effectiveJoinUrl ?? '');

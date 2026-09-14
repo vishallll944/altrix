@@ -9,6 +9,7 @@ import 'package:altrix/features/patient/presentation/screens/appointment_editor_
 import 'package:altrix/features/resources/presentation/screens/resources_screen.dart';
 import 'package:altrix/features/telehealth/presentation/screens/in_app_zoom_meeting_screen.dart';
 import 'package:altrix/features/telehealth/presentation/screens/telehealth_room_screen.dart';
+import 'package:altrix/widgets/appointment_actions.dart';
 
 void main() {
   testWidgets('HelpCenterScreen renders hero, search, contact options, and FAQs',
@@ -313,5 +314,132 @@ void main() {
     await tester.tap(find.text('Stay in Meeting'));
     await tester.pumpAndSettle();
     expect(find.text('End Zoom Meeting?'), findsNothing);
+  });
+
+  test('AppointmentModel join window checks enforce 5-minute threshold', () {
+    final appt = AppointmentModel.fromJson(const {
+      'id': 'appt-test-time',
+      'title': 'Therapy Session',
+      'date': '2026-09-14',
+      'startTime': '15:00',
+      'endTime': '15:50',
+      'isVirtual': true,
+      'joinUrl': 'https://zoom.us/j/1234567890',
+    });
+
+    // 10 minutes before (2:50 PM): too early to join
+    final tenMinBefore = DateTime(2026, 9, 14, 14, 50);
+    expect(appt.isTooEarlyToJoin(tenMinBefore), isTrue);
+    expect(appt.canJoinMeeting(tenMinBefore), isFalse);
+
+    // 6 minutes before (2:54 PM): too early to join
+    final sixMinBefore = DateTime(2026, 9, 14, 14, 54);
+    expect(appt.isTooEarlyToJoin(sixMinBefore), isTrue);
+    expect(appt.canJoinMeeting(sixMinBefore), isFalse);
+
+    // Exactly 5 minutes before (2:55 PM): able to join
+    final fiveMinBefore = DateTime(2026, 9, 14, 14, 55);
+    expect(appt.isTooEarlyToJoin(fiveMinBefore), isFalse);
+    expect(appt.canJoinMeeting(fiveMinBefore), isTrue);
+
+    // 2 minutes before (2:58 PM): able to join
+    final twoMinBefore = DateTime(2026, 9, 14, 14, 58);
+    expect(appt.isTooEarlyToJoin(twoMinBefore), isFalse);
+    expect(appt.canJoinMeeting(twoMinBefore), isTrue);
+
+    // During meeting (3:15 PM): able to join
+    final duringMeeting = DateTime(2026, 9, 14, 15, 15);
+    expect(appt.isTooEarlyToJoin(duringMeeting), isFalse);
+    expect(appt.canJoinMeeting(duringMeeting), isTrue);
+
+    // Well after meeting (5:00 PM): concluded
+    final wellAfter = DateTime(2026, 9, 14, 17, 0);
+    expect(appt.isMeetingConcluded(wellAfter), isTrue);
+    expect(appt.canJoinMeeting(wellAfter), isFalse);
+  });
+
+  testWidgets('openAppointmentJoin shows snackbar when meeting has more than 5 minutes remaining',
+      (tester) async {
+    final appt = AppointmentModel.fromJson(const {
+      'id': 'appt-test-early',
+      'title': 'Therapy Session',
+      'date': '2026-09-14',
+      'startTime': '15:00',
+      'endTime': '15:50',
+      'isVirtual': true,
+      'joinUrl': 'https://zoom.us/j/1234567890',
+    });
+
+    final testNow = DateTime(2026, 9, 14, 14, 30); // 30 minutes before
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () => openAppointmentJoin(context, appt, currentTime: testNow),
+              child: const Text('Join'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Join'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      find.textContaining("You can't join the meeting yet. You can join starting 5 minutes before"),
+      findsOneWidget,
+    );
+    // Did not navigate to Telehealth Lobby
+    expect(find.text('Telehealth Lobby'), findsNothing);
+  });
+
+  testWidgets('openAppointmentJoin navigates to Telehealth Lobby when 5 minutes or less remain',
+      (tester) async {
+    final appt = AppointmentModel.fromJson(const {
+      'id': 'appt-test-ontime',
+      'title': 'Therapy Session',
+      'date': '2026-09-14',
+      'startTime': '15:00',
+      'endTime': '15:50',
+      'isVirtual': true,
+      'joinToken': 'token-ontime',
+      'joinUrl': 'https://zoom.us/j/1234567890',
+    });
+
+    final testNow = DateTime(2026, 9, 14, 14, 57); // 3 minutes before
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          telehealthSessionProvider('token-ontime').overrideWith(
+            (ref) async => TelehealthSessionModel.fromJson(const {
+              'provider': 'Altrix WebRTC',
+              'status': 'waiting',
+            }),
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => openAppointmentJoin(context, appt, currentTime: testNow),
+                child: const Text('Join'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Join'));
+    await tester.pumpAndSettle();
+
+    // Navigated to Telehealth Lobby
+    expect(find.text('Telehealth Lobby'), findsOneWidget);
+    expect(find.textContaining("You can't join the meeting yet"), findsNothing);
   });
 }

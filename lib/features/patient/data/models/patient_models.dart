@@ -17,6 +17,7 @@ class AppointmentModel {
     required this.location,
     required this.note,
     required this.sortDateTime,
+    this.endDateTime,
     required this.raw,
   });
 
@@ -35,6 +36,7 @@ class AppointmentModel {
   final String location;
   final String note;
   final DateTime? sortDateTime;
+  final DateTime? endDateTime;
   final Map<String, dynamic> raw;
 
   factory AppointmentModel.fromJson(Map<String, dynamic> json) {
@@ -107,6 +109,8 @@ class AppointmentModel {
       location: readString(json, ['location', 'address', 'clinicName', 'clinic_name']),
       note: readString(json, ['note', 'notes', 'reason']),
       sortDateTime: sortDateTime,
+      endDateTime: endSortDateTime ??
+          (sortDateTime != null ? sortDateTime.add(const Duration(minutes: 50)) : null),
       raw: json,
     );
   }
@@ -173,6 +177,39 @@ class AppointmentModel {
             .contains(status.toLowerCase());
   }
 
+  /// Whether the appointment is joinable at [currentTime] (defaults to DateTime.now()).
+  /// Patients can join starting 5 minutes before the scheduled start time
+  /// until the scheduled session concludes.
+  bool canJoinMeeting([DateTime? currentTime]) {
+    final start = sortDateTime;
+    if (start == null) return true;
+
+    final now = currentTime ?? DateTime.now();
+    final joinWindowStart = start.subtract(const Duration(minutes: 5));
+    final sessionEnd = endDateTime ?? start.add(const Duration(minutes: 60));
+
+    return !now.isBefore(joinWindowStart) && !now.isAfter(sessionEnd);
+  }
+
+  /// Whether the appointment is more than 5 minutes away from starting.
+  bool isTooEarlyToJoin([DateTime? currentTime]) {
+    final start = sortDateTime;
+    if (start == null) return false;
+
+    final now = currentTime ?? DateTime.now();
+    final joinWindowStart = start.subtract(const Duration(minutes: 5));
+    return now.isBefore(joinWindowStart);
+  }
+
+  /// Whether the appointment has already concluded.
+  bool isMeetingConcluded([DateTime? currentTime]) {
+    final start = sortDateTime;
+    if (start == null) return false;
+
+    final now = currentTime ?? DateTime.now();
+    final sessionEnd = endDateTime ?? start.add(const Duration(minutes: 60));
+    return now.isAfter(sessionEnd);
+  }
 }
 
 String _readNestedName(Map<String, dynamic> json, List<String> keys) {
@@ -193,6 +230,23 @@ DateTime? _parseSortDateTime({
 }) {
   final normalizedDate = date.contains('T') ? date.split('T').first : date;
   if (normalizedDate.isNotEmpty && startTime.isNotEmpty) {
+    // Also support 12-hour AM/PM times e.g. "10:00 AM" or "02:30 PM"
+    final clockMatch = RegExp(r'^(\d{1,2}):(\d{2})\s*(AM|PM)?$', caseSensitive: false)
+        .firstMatch(startTime.trim());
+    if (clockMatch != null) {
+      var hour = int.tryParse(clockMatch.group(1)!);
+      final minute = int.tryParse(clockMatch.group(2)!);
+      final period = clockMatch.group(3)?.toUpperCase();
+      if (hour != null && minute != null) {
+        if (period == 'PM' && hour < 12) hour += 12;
+        if (period == 'AM' && hour == 12) hour = 0;
+        final timeFormatted =
+            '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}:00';
+        final parsed = DateTime.tryParse('${normalizedDate}T$timeFormatted');
+        if (parsed != null) return parsed;
+      }
+    }
+
     final time = startTime.length == 5 ? '$startTime:00' : startTime;
     final parsed = DateTime.tryParse('${normalizedDate}T$time');
     if (parsed != null) return parsed;
