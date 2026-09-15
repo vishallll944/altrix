@@ -7,6 +7,7 @@ import '../features/auth/presentation/providers/auth_provider.dart';
 import '../features/auth/presentation/providers/auth_providers.dart';
 import '../features/auth/presentation/providers/auth_token_provider.dart';
 import '../features/patient/data/models/patient_models.dart';
+import '../features/patient/data/services/chat_socket_service.dart';
 import '../features/patient/presentation/providers/patient_providers.dart';
 import '../theme/app_colors.dart';
 import '../widgets/empty_state_card.dart';
@@ -36,89 +37,44 @@ class ConversationDetailScreenState
   final _scrollController = ScrollController();
   final _focusNode = FocusNode();
 
+  late final ChatSocketService _socketService;
+  StreamSubscription<MessageModel>? _messageSub;
+  StreamSubscription<bool>? _typingSub;
+  StreamSubscription<String>? _presenceSub;
+  Timer? _typingDebounceTimer;
+
   List<MessageModel> _messages = [];
   bool _isLoading = true;
   String? _error;
-  Timer? _liveChatTimer;
-  StreamSubscription<Map<String, dynamic>>? _sseSubscription;
   bool _isSending = false;
+  bool _isDoctorTyping = false;
+  String _doctorPresenceStatus = 'online';
+  late String _threadId;
 
   @override
   void initState() {
     super.initState();
-    _fetchInitialMessages();
-    _startLiveChatSync();
+    _threadId = widget.conversationId;
+    _socketService = ChatSocketService();
+    _initChat();
   }
 
   @override
   void dispose() {
-    _sseSubscription?.cancel();
-    _liveChatTimer?.cancel();
+    _messageSub?.cancel();
+    _typingSub?.cancel();
+    _presenceSub?.cancel();
+    _typingDebounceTimer?.cancel();
+    _socketService.dispose();
     _controller.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
-  void _startLiveChatSync() async {
-    _sseSubscription?.cancel();
-    _liveChatTimer?.cancel();
-
-    // 1. Real-Time Live Message Stream (SSE) for instant (<50ms) message arrival
-    String? token;
-    try {
-      token = ref.read(authTokenProvider);
-      if (token == null || token.isEmpty) {
-        token = await ref.read(authSessionStorageProvider).readToken();
-      }
-    } catch (_) {
-      // In test environments where storage provider is not overridden
-      token = null;
-    }
-
-    if (token != null && token.isNotEmpty) {
-      try {
-        _sseSubscription = ref
-            .read(patientRepositoryProvider)
-            .streamLiveMessages(threadId: widget.conversationId, token: token)
-            .listen(
-              (payload) {
-                if (!mounted) return;
-                final messageMap = payload['message'] is Map<String, dynamic>
-                    ? payload['message'] as Map<String, dynamic>
-                    : (payload['data'] is Map<String, dynamic>
-                          ? payload['data'] as Map<String, dynamic>
-                          : payload);
-                if (messageMap['id'] != null) {
-                  final incoming = MessageModel.fromJson(messageMap);
-                  _mergeLiveMessages([incoming]);
-                }
-              },
-              onError: (err) {
-                debugPrint('[SSE] Stream error, falling back to polling: $err');
-                _startPollingFallback();
-              },
-              onDone: () {
-                _startPollingFallback();
-              },
-              cancelOnError: false,
-            );
-      } catch (err) {
-        debugPrint('[SSE] Error setting up stream: $err');
-        _startPollingFallback();
-      }
-    }
-
-    // Secondary periodic poll (every 5 seconds) as fallback/resilience mechanism
-    _startPollingFallback();
-  }
-
-  void _startPollingFallback() {
-    if (_liveChatTimer != null && _liveChatTimer!.isActive) return;
-    _liveChatTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (!mounted) return;
-      _pollLiveMessages();
-    });
+  void _initChat() async {
+    await _fetchInitialMessages();
+    _connectSocket();
   }
 
   Future<void> _fetchInitialMessages() async {
@@ -128,34 +84,104 @@ class ConversationDetailScreenState
     });
 
     try {
-      final messages = await ref
+      // 1. Fetch chat message history via GET /api/patient/messages
+      final result = await ref
           .read(patientRepositoryProvider)
-          .getConversationMessages(conversationId: widget.conversationId);
+          .getPatientMessages(threadId: _threadId.isNotEmpty ? _threadId : null);
       if (!mounted) return;
+      if (result.threadId.isNotEmpty) {
+        _threadId = result.threadId;
+      }
       setState(() {
-        _messages = List.of(messages);
+        _messages = List.of(result.messages);
         _isLoading = false;
       });
       _scrollToBottom();
-      _markIncomingAsRead(messages);
+      _markIncomingAsRead(result.messages);
     } catch (err) {
-      if (!mounted) return;
-      setState(() {
-        _error = friendlyErrorMessage(err);
-        _isLoading = false;
-      });
+      try {
+        // Fallback to getConversationMessages if available
+        final messages = await ref
+            .read(patientRepositoryProvider)
+            .getConversationMessages(conversationId: _threadId);
+        if (!mounted) return;
+        setState(() {
+          _messages = List.of(messages);
+          _isLoading = false;
+        });
+        _scrollToBottom();
+        _markIncomingAsRead(messages);
+      } catch (innerErr) {
+        if (!mounted) return;
+        setState(() {
+          _error = friendlyErrorMessage(err);
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  Future<void> _pollLiveMessages() async {
+  void _connectSocket() async {
+    final user = ref.read(authProvider).user;
+    final patientId = user?.id ?? 'patient_${DateTime.now().millisecondsSinceEpoch}';
+    final patientName = user?.name ?? 'Patient';
+
+    String? token;
     try {
-      final latest = await ref
-          .read(patientRepositoryProvider)
-          .getConversationMessages(conversationId: widget.conversationId);
-      if (!mounted) return;
-      _mergeLiveMessages(latest);
+      token = ref.read(authTokenProvider);
+      if (token == null || token.isEmpty) {
+        token = await ref.read(authSessionStorageProvider).readToken();
+      }
     } catch (_) {
-      // Keep silent on background polling to avoid interrupting chat UI
+      token = null;
+    }
+
+    _socketService.connectSocket(
+      patientId: patientId,
+      patientName: patientName,
+      threadId: _threadId,
+      token: token,
+    );
+
+    _messageSub?.cancel();
+    _messageSub = _socketService.onNewMessage.listen((incoming) {
+      if (!mounted) return;
+      _mergeLiveMessages([incoming]);
+    });
+
+    _typingSub?.cancel();
+    _typingSub = _socketService.onTypingStatus.listen((isTyping) {
+      if (!mounted) return;
+      setState(() {
+        _isDoctorTyping = isTyping;
+      });
+      if (isTyping) {
+        _scrollToBottom();
+      }
+    });
+
+    _presenceSub?.cancel();
+    _presenceSub = _socketService.onPresenceChange.listen((status) {
+      if (!mounted) return;
+      setState(() {
+        _doctorPresenceStatus = status;
+      });
+    });
+  }
+
+  void _onTextChanged(String text) {
+    final user = ref.read(authProvider).user;
+    final patientId = user?.id ?? 'patient';
+    final patientName = user?.name ?? 'Patient';
+
+    if (text.trim().isNotEmpty) {
+      _socketService.sendTypingStart(_threadId, patientId, patientName);
+      _typingDebounceTimer?.cancel();
+      _typingDebounceTimer = Timer(const Duration(milliseconds: 2000), () {
+        _socketService.sendTypingStop(_threadId, patientId, patientName);
+      });
+    } else {
+      _socketService.sendTypingStop(_threadId, patientId, patientName);
     }
   }
 
@@ -219,19 +245,24 @@ class ConversationDetailScreenState
     if (text.isEmpty || _isSending) return;
 
     final user = ref.read(authProvider).user;
-    final currentUserId = user?.id;
+    final currentUserId = user?.id ?? 'patient';
     final currentUserName = user?.name ?? 'You';
+
+    // Stop typing indication immediately
+    _typingDebounceTimer?.cancel();
+    _socketService.sendTypingStop(_threadId, currentUserId, currentUserName);
 
     final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
     final optimistic = MessageModel(
       id: tempId,
+      threadId: _threadId,
       body: text,
       sender: 'patient',
       senderName: currentUserName,
       createdAt: DateTime.now().toIso8601String(),
       isRead: true,
       isPending: true,
-      raw: {'senderId': currentUserId ?? ''},
+      raw: {'senderId': currentUserId},
     );
 
     setState(() {
@@ -242,9 +273,19 @@ class ConversationDetailScreenState
     _scrollToBottom();
 
     try {
-      final confirmed = await ref
-          .read(patientRepositoryProvider)
-          .sendMessage(conversationId: widget.conversationId, message: text);
+      MessageModel confirmed;
+      try {
+        // Send via POST /api/patient/messages as specified
+        confirmed = await ref
+            .read(patientRepositoryProvider)
+            .sendPatientMessage(content: text, threadId: _threadId);
+      } catch (_) {
+        // Fallback to sendMessage
+        confirmed = await ref
+            .read(patientRepositoryProvider)
+            .sendMessage(conversationId: _threadId, message: text);
+      }
+
       if (!mounted) return;
       setState(() {
         final index = _messages.indexWhere((m) => m.id == tempId);
@@ -313,7 +354,7 @@ class ConversationDetailScreenState
         titleSpacing: 0,
         title: Row(
           children: [
-            // Participant Avatar Icon with live indicator
+            // Participant Avatar Icon with live presence indicator
             Stack(
               clipBehavior: Clip.none,
               children: [
@@ -352,7 +393,9 @@ class ConversationDetailScreenState
                     width: 11,
                     height: 11,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF10B981),
+                      color: _doctorPresenceStatus == 'online'
+                          ? const Color(0xFF10B981)
+                          : const Color(0xFF94A3B8),
                       shape: BoxShape.circle,
                       border: Border.all(color: AppColors.surface, width: 2),
                     ),
@@ -377,19 +420,35 @@ class ConversationDetailScreenState
                     ),
                   ),
                   const SizedBox(height: 2),
-                  const Row(
+                  Row(
                     children: [
-                      _LiveDotSmall(),
-                      SizedBox(width: 5),
+                      _LiveDotSmall(
+                        color: _isDoctorTyping
+                            ? const Color(0xFF6366F1)
+                            : (_doctorPresenceStatus == 'online'
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFF94A3B8)),
+                      ),
+                      const SizedBox(width: 5),
                       Flexible(
                         child: Text(
-                          'Active now · Real-time encrypted',
+                          _isDoctorTyping
+                              ? 'Doctor is typing...'
+                              : (_doctorPresenceStatus == 'online'
+                                  ? 'Active now · Real-time encrypted'
+                                  : 'Offline · Real-time encrypted'),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 11.5,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF059669),
+                            fontWeight: _isDoctorTyping
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: _isDoctorTyping
+                                ? AppColors.primary
+                                : (_doctorPresenceStatus == 'online'
+                                    ? const Color(0xFF059669)
+                                    : AppColors.textTertiary),
                           ),
                         ),
                       ),
@@ -427,20 +486,7 @@ class ConversationDetailScreenState
               ],
             ),
           ),
-          // Chat Messages List - commented out to show No chats message
-          const Expanded(
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: EmptyStateCard(
-                  title: 'No chats',
-                  message: 'No chats available.',
-                  icon: Icons.chat_bubble_outline_rounded,
-                ),
-              ),
-            ),
-          ),
-          /*
+          // Active Chat Messages List
           Expanded(
             child: _isLoading
                 ? const Center(
@@ -456,7 +502,7 @@ class ConversationDetailScreenState
                           ),
                         ),
                       )
-                    : _messages.isEmpty
+                    : _messages.isEmpty && !_isDoctorTyping
                         ? const Center(
                             child: Padding(
                               padding: EdgeInsets.all(24),
@@ -471,8 +517,16 @@ class ConversationDetailScreenState
                         : ListView.builder(
                             controller: _scrollController,
                             padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-                            itemCount: _messages.length,
+                            itemCount:
+                                _messages.length + (_isDoctorTyping ? 1 : 0),
                             itemBuilder: (context, index) {
+                              if (index == _messages.length &&
+                                  _isDoctorTyping) {
+                                return _DoctorTypingBubble(
+                                  doctorName: displayName,
+                                  doctorInitials: initials,
+                                );
+                              }
                               final message = _messages[index];
                               final isMe = message.isFromMe(
                                 currentUserId: currentUserId,
@@ -499,7 +553,6 @@ class ConversationDetailScreenState
                             },
                           ),
           ),
-          */
           // Bottom Message Input Bar
           SafeArea(
             top: false,
@@ -548,6 +601,7 @@ class ConversationDetailScreenState
                           isDense: true,
                           contentPadding: EdgeInsets.symmetric(vertical: 12),
                         ),
+                        onChanged: _onTextChanged,
                         onSubmitted: (_) => _sendMessage(),
                       ),
                     ),
@@ -835,17 +889,152 @@ class _DateDivider extends StatelessWidget {
 }
 
 class _LiveDotSmall extends StatelessWidget {
-  const _LiveDotSmall();
+  const _LiveDotSmall({this.color = const Color(0xFF10B981)});
+
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: 6,
       height: 6,
-      decoration: const BoxDecoration(
-        color: Color(0xFF10B981),
+      decoration: BoxDecoration(
+        color: color,
         shape: BoxShape.circle,
       ),
     );
   }
 }
+
+class _DoctorTypingBubble extends StatefulWidget {
+  const _DoctorTypingBubble({
+    required this.doctorName,
+    required this.doctorInitials,
+  });
+
+  final String doctorName;
+  final String doctorInitials;
+
+  @override
+  State<_DoctorTypingBubble> createState() => _DoctorTypingBubbleState();
+}
+
+class _DoctorTypingBubbleState extends State<_DoctorTypingBubble>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            margin: const EdgeInsets.only(right: 8, bottom: 2),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.primaryWash,
+                  AppColors.primary.withValues(alpha: 0.2),
+                ],
+              ),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.25),
+              ),
+            ),
+            child: Center(
+              child: Text(
+                widget.doctorInitials,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(18),
+                topRight: Radius.circular(18),
+                bottomLeft: Radius.circular(4),
+                bottomRight: Radius.circular(18),
+              ),
+              border: Border.all(color: AppColors.border),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.navy.withValues(alpha: 0.04),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildDot(0),
+                const SizedBox(width: 4),
+                _buildDot(0.2),
+                const SizedBox(width: 4),
+                _buildDot(0.4),
+                const SizedBox(width: 8),
+                Text(
+                  widget.doctorName.isNotEmpty
+                      ? '${widget.doctorName.split(' ').first} is typing...'
+                      : 'Doctor is typing...',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDot(double delay) {
+    return AnimatedBuilder(
+      animation: _animController,
+      builder: (context, child) {
+        final progress = (_animController.value - delay) % 1.0;
+        final opacity =
+            (0.3 + 0.7 * (1.0 - (progress - 0.5).abs() * 2)).clamp(0.1, 1.0);
+        return Container(
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: opacity),
+            shape: BoxShape.circle,
+          ),
+        );
+      },
+    );
+  }
+}
+

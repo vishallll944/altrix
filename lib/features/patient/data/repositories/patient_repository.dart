@@ -86,6 +86,17 @@ class PatientRepository {
   }) =>
       _remote.createConversation(topic: topic, message: message);
 
+  Future<({String threadId, List<MessageModel> messages})> getPatientMessages({
+    String? threadId,
+  }) =>
+      _remote.getPatientMessages(threadId: threadId);
+
+  Future<MessageModel> sendPatientMessage({
+    required String content,
+    String? threadId,
+  }) =>
+      _remote.sendPatientMessage(content: content, threadId: threadId);
+
   Future<List<MessageModel>> getConversationMessages({
     required String conversationId,
     int page = 1,

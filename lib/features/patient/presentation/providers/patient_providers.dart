@@ -4,6 +4,13 @@ import '../../../../core/network/dio_client.dart';
 import '../../data/datasources/patient_remote_datasource.dart';
 import '../../data/models/patient_models.dart';
 import '../../data/repositories/patient_repository.dart';
+import '../../data/services/chat_socket_service.dart';
+
+final chatSocketServiceProvider = Provider.autoDispose<ChatSocketService>((ref) {
+  final service = ChatSocketService();
+  ref.onDispose(() => service.dispose());
+  return service;
+});
 
 final patientRemoteDataSourceProvider = Provider<PatientRemoteDataSource>((ref) {
   return PatientRemoteDataSource(ref.watch(dioProvider));
@@ -11,6 +18,16 @@ final patientRemoteDataSourceProvider = Provider<PatientRemoteDataSource>((ref) 
 
 final patientRepositoryProvider = Provider<PatientRepository>((ref) {
   return PatientRepository(ref.watch(patientRemoteDataSourceProvider));
+});
+
+final patientMessagesProvider = FutureProvider.autoDispose
+    .family<({String threadId, List<MessageModel> messages}), String?>((
+  ref,
+  threadId,
+) async {
+  return ref.watch(patientRepositoryProvider).getPatientMessages(
+        threadId: threadId,
+      );
 });
 
 final dashboardProvider = FutureProvider<DashboardModel>((ref) async {

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,8 +8,7 @@ import '../features/patient/data/models/patient_models.dart';
 import '../features/patient/presentation/providers/patient_providers.dart';
 import '../theme/app_colors.dart';
 import '../widgets/empty_state_card.dart';
-
-// import 'conversation_detail_screen.dart';
+import 'conversation_detail_screen.dart';
 
 class MessagesScreen extends ConsumerStatefulWidget {
   const MessagesScreen({super.key});
@@ -40,6 +37,16 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _openCareChat(context),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.chat_bubble_rounded, size: 20),
+        label: const Text(
+          'Start Chat',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
       body: SafeArea(
         child: ResponsiveCenter(
           child: RefreshIndicator(
@@ -156,21 +163,17 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
     );
   }
 
-  // Commented out with chat person list:
-  // void _openThread(BuildContext context, ConversationModel conversation) {
-  //   Navigator.of(context).push(
-  //     MaterialPageRoute(
-  //       builder: (_) => ConversationDetailScreen(
-  //         conversationId: conversation.id,
-  //         title: conversation.effectiveName,
-  //         participantName: conversation.participantName.isNotEmpty
-  //             ? conversation.participantName
-  //             : conversation.effectiveName,
-  //         avatarUrl: conversation.avatarUrl,
-  //       ),
-  //     ),
-  //   );
-  // }
+  void _openCareChat(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const ConversationDetailScreen(
+          conversationId: '',
+          title: 'Care Team',
+          participantName: 'Care Team',
+        ),
+      ),
+    );
+  }
 }
 
 class _UserHeader extends StatelessWidget {

@@ -260,6 +260,53 @@ class PatientRemoteDataSource {
     return ConversationModel.fromJson(payload);
   }
 
+  /// Fetch chat messages history
+  /// GET /api/patient/messages
+  Future<({String threadId, List<MessageModel> messages})> getPatientMessages({
+    String? threadId,
+  }) async {
+    final data = await _request(
+      () => _dio.get<Map<String, dynamic>>(
+        ApiEndpoints.patientMessages,
+        queryParameters: threadId != null && threadId.isNotEmpty
+            ? {'threadId': threadId}
+            : null,
+      ),
+    );
+    final payload = unwrapApiPayload(data);
+    final resolvedThreadId = readString(payload, ['threadId', 'thread_id', 'id']);
+    final rawMessages = extractListFromPayload(
+      payload,
+      keys: const ['messages', 'items'],
+    );
+    final messages = rawMessages.map(MessageModel.fromJson).toList();
+    return (threadId: resolvedThreadId, messages: messages);
+  }
+
+  /// Send new message (REST fallback)
+  /// POST /api/patient/messages
+  Future<MessageModel> sendPatientMessage({
+    required String content,
+    String? threadId,
+  }) async {
+    final data = await _request(
+      () => _dio.post<Map<String, dynamic>>(
+        ApiEndpoints.patientMessages,
+        data: {
+          'content': content,
+          'message': content,
+          if (threadId != null && threadId.isNotEmpty) 'threadId': threadId,
+        },
+      ),
+    );
+    final payload = unwrapApiPayload(data);
+    final item = payload['message'];
+    if (item is Map<String, dynamic>) {
+      return MessageModel.fromJson(item);
+    }
+    return MessageModel.fromJson(payload);
+  }
+
   Future<List<MessageModel>> getConversationMessages({
     required String conversationId,
     int page = 1,

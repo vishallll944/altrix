@@ -120,7 +120,7 @@ void main() {
     });
 
     testWidgets(
-      'ConversationDetailScreen renders participant profile icon and no chats message',
+      'ConversationDetailScreen renders participant profile, online status, and live chat message bubble',
       (tester) async {
         await tester.binding.setSurfaceSize(const Size(390, 844));
         addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -135,6 +135,7 @@ void main() {
         final fakeRepo = _FakePatientChatRepo([
           MessageModel.fromJson({
             'id': 'msg-1',
+            'threadId': 'conv-1',
             'body': 'Welcome Vishal! How can I assist you?',
             'sender': 'clinician',
             'senderName': 'Dr. Sarah Jenkins',
@@ -167,13 +168,109 @@ void main() {
         expect(find.text('DJ'), findsWidgets);
         expect(find.text('Active now · Real-time encrypted'), findsOneWidget);
 
-        // Verify chat messages are commented out and "No chats" message is shown
-        expect(find.text('No chats'), findsOneWidget);
-        expect(find.text('No chats available.'), findsOneWidget);
+        // Verify chat message is rendered in the active message bubble
         expect(
           find.text('Welcome Vishal! How can I assist you?'),
-          findsNothing,
+          findsOneWidget,
         );
+      },
+    );
+
+    testWidgets(
+      'ConversationDetailScreen renders empty state when no messages exist',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(390, 844));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        final testUser = const User(
+          id: 'user-1',
+          name: 'Vishal',
+          email: 'vishal@mindaptix.com',
+          phone: '1234567890',
+        );
+
+        final fakeRepo = _FakePatientChatRepo([]);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              authProvider.overrideWith(() => _FakeAuthNotifier(testUser)),
+              patientRepositoryProvider.overrideWithValue(fakeRepo),
+            ],
+            child: const MaterialApp(
+              home: ConversationDetailScreen(
+                conversationId: 'conv-empty',
+                title: 'Dr. Sarah Jenkins',
+                participantName: 'Dr. Sarah Jenkins',
+              ),
+            ),
+          ),
+        );
+
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(find.text('Start a conversation'), findsOneWidget);
+        expect(
+          find.text('Send your care team a secure real-time message below.'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'ConversationDetailScreen sends a message and optimistically updates UI',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(390, 844));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        final testUser = const User(
+          id: 'user-1',
+          name: 'Vishal',
+          email: 'vishal@mindaptix.com',
+          phone: '1234567890',
+        );
+
+        final fakeRepo = _FakePatientChatRepo([]);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              authProvider.overrideWith(() => _FakeAuthNotifier(testUser)),
+              patientRepositoryProvider.overrideWithValue(fakeRepo),
+            ],
+            child: const MaterialApp(
+              home: ConversationDetailScreen(
+                conversationId: 'conv-send-test',
+                title: 'Dr. Sarah Jenkins',
+                participantName: 'Dr. Sarah Jenkins',
+              ),
+            ),
+          ),
+        );
+
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        // Enter text in message field
+        final textField = find.byType(TextField);
+        expect(textField, findsOneWidget);
+        await tester.enterText(textField, 'Doctor, can I take the medicine after dinner?');
+        await tester.pump();
+
+        // Tap the send button (IconButton/Material with up arrow)
+        final sendButton = find.byIcon(Icons.arrow_upward_rounded);
+        expect(sendButton, findsOneWidget);
+        await tester.tap(sendButton);
+        await tester.pump();
+
+        // Verify optimistic message is displayed and textfield is cleared
+        expect(
+          find.text('Doctor, can I take the medicine after dinner?'),
+          findsOneWidget,
+        );
+        expect(fakeRepo.messages.length, 1);
+        expect(fakeRepo.messages.first.body, 'Doctor, can I take the medicine after dinner?');
       },
     );
   });

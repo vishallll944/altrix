@@ -581,6 +581,7 @@ class ConversationModel {
 class MessageModel {
   const MessageModel({
     required this.id,
+    this.threadId = '',
     required this.body,
     required this.sender,
     required this.createdAt,
@@ -593,6 +594,7 @@ class MessageModel {
   });
 
   final String id;
+  final String threadId;
   final String body;
   final String sender;
   final String createdAt;
@@ -605,6 +607,7 @@ class MessageModel {
 
   MessageModel copyWith({
     String? id,
+    String? threadId,
     String? body,
     String? sender,
     String? createdAt,
@@ -617,6 +620,7 @@ class MessageModel {
   }) {
     return MessageModel(
       id: id ?? this.id,
+      threadId: threadId ?? this.threadId,
       body: body ?? this.body,
       sender: sender ?? this.sender,
       createdAt: createdAt ?? this.createdAt,
@@ -631,6 +635,9 @@ class MessageModel {
 
   bool isFromMe({String? currentUserId, String? currentUserName}) {
     final s = sender.toLowerCase().trim();
+    if (s == 'clinician' || s == 'doctor' || s == 'provider') {
+      return false;
+    }
     if (s == 'patient' || s == 'client' || s == 'me' || s == 'user') {
       return true;
     }
@@ -730,6 +737,7 @@ class MessageModel {
 
     return MessageModel(
       id: readString(json, ['id', '_id', 'messageId']),
+      threadId: readString(json, ['threadId', 'thread_id']),
       body: readString(json, ['message', 'body', 'text', 'content']),
       sender: senderStr,
       senderName: sName,

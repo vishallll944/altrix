@@ -28,6 +28,7 @@ class ApiEndpoints {
       '/api/patient/doctors/$doctorId/availability';
 
   // Messages
+  static const patientMessages = '/api/patient/messages';
   static const patientConversations = '/api/patient/conversations';
   static String patientConversationMessages(String conversationId) =>
       '/api/patient/conversations/$conversationId/messages';
