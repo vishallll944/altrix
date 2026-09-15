@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:firebase_messaging/firebase_messaging.dart';
+
 import '../../domain/push_notifications.dart';
 
 class NoOpPushNotificationService implements PushNotifications {
@@ -14,4 +18,8 @@ class NoOpPushNotificationService implements PushNotifications {
 
   @override
   Future<void> saveDeviceToken(String token) async {}
+
+  @override
+  Stream<RemoteMessage> get onForegroundMessage =>
+      const Stream<RemoteMessage>.empty();
 }

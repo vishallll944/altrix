@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../data/datasources/patient_remote_datasource.dart';
 import '../../data/models/patient_models.dart';
@@ -34,7 +36,8 @@ final dashboardProvider = FutureProvider<DashboardModel>((ref) async {
   return ref.watch(patientRepositoryProvider).getDashboard();
 });
 
-final appointmentsProvider = FutureProvider<List<AppointmentModel>>((ref) async {
+final appointmentsProvider =
+    FutureProvider.autoDispose<List<AppointmentModel>>((ref) async {
   return ref.watch(patientRepositoryProvider).getAppointments();
 });
 
@@ -45,6 +48,52 @@ final doctorsProvider = FutureProvider.autoDispose<List<DoctorModel>>((ref) asyn
 final conversationsProvider =
     FutureProvider.autoDispose<List<ConversationModel>>((ref) async {
   return ref.watch(patientRepositoryProvider).getConversations();
+});
+
+class LocalReadConversationsNotifier extends StateNotifier<Set<String>> {
+  LocalReadConversationsNotifier(this._prefs)
+      : super((_prefs?.getStringList(_key) ?? []).toSet());
+
+  static const _key = 'local_read_conversations';
+  final SharedPreferences? _prefs;
+
+  void markAsRead(String conversationId) {
+    if (conversationId.isEmpty || state.contains(conversationId)) return;
+    final updated = {...state, conversationId};
+    state = updated;
+    _prefs?.setStringList(_key, updated.toList());
+  }
+
+  void update(Set<String> Function(Set<String>) fn) {
+    final updated = fn(state);
+    state = updated;
+    _prefs?.setStringList(_key, updated.toList());
+  }
+
+  void markAsUnread(String conversationId) {
+    if (!state.contains(conversationId)) return;
+    final updated = state.where((id) => id != conversationId).toSet();
+    state = updated;
+    _prefs?.setStringList(_key, updated.toList());
+  }
+
+  void clear() {
+    state = {};
+    _prefs?.remove(_key);
+  }
+}
+
+/// Tracks conversation IDs the user has opened.
+/// Stored persistently in SharedPreferences so it survives hot restarts and app relaunches.
+final localReadConversationsProvider =
+    StateNotifierProvider<LocalReadConversationsNotifier, Set<String>>((ref) {
+  SharedPreferences? prefs;
+  try {
+    prefs = ref.watch(sharedPreferencesProvider);
+  } catch (_) {
+    prefs = null;
+  }
+  return LocalReadConversationsNotifier(prefs);
 });
 
 final checkInsProvider = FutureProvider.autoDispose<List<CheckInModel>>((ref) async {

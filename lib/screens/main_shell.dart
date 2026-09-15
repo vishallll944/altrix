@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../core/responsive/responsive.dart';
 import '../theme/app_colors.dart';
 import '../widgets/exit_app_scope.dart';
+import '../widgets/in_app_notification_overlay.dart';
 import 'home_screen.dart';
 import 'placeholder_screens.dart' show ProfileScreen;
 import 'schedule_screen.dart';
@@ -68,27 +69,29 @@ class _MainShellState extends State<MainShell> {
     );
 
     return ExitAppScope(
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        body: responsive.useNavigationRail
-            ? Row(
-                children: [
-                  _AppNavigationRail(
-                    index: _index,
-                    extended: responsive.width >= 1024,
-                    onChanged: _onTabSelected,
-                  ),
-                  const VerticalDivider(width: 1, color: AppColors.border),
-                  Expanded(child: body),
-                ],
-              )
-            : body,
-        bottomNavigationBar: responsive.useNavigationRail
-            ? null
-            : _AppBottomNav(
-                index: _index,
-                onChanged: _onTabSelected,
-              ),
+      child: InAppNotificationOverlay(
+        child: Scaffold(
+          backgroundColor: AppColors.background,
+          body: responsive.useNavigationRail
+              ? Row(
+                  children: [
+                    _AppNavigationRail(
+                      index: _index,
+                      extended: responsive.width >= 1024,
+                      onChanged: _onTabSelected,
+                    ),
+                    const VerticalDivider(width: 1, color: AppColors.border),
+                    Expanded(child: body),
+                  ],
+                )
+              : body,
+          bottomNavigationBar: responsive.useNavigationRail
+              ? null
+              : _AppBottomNav(
+                  index: _index,
+                  onChanged: _onTabSelected,
+                ),
+        ),
       ),
     );
   }

@@ -159,7 +159,7 @@ void main() {
         // Verify participant name and avatar initial in AppBar
         expect(find.text('Dr. Sarah Jenkins'), findsWidgets);
         expect(find.text('DJ'), findsWidgets);
-        expect(find.text('Active now · Real-time encrypted'), findsOneWidget);
+        expect(find.textContaining('End-to-end encrypted'), findsOneWidget);
 
         // Verify chat message is rendered in the active message bubble
         expect(
@@ -251,8 +251,8 @@ void main() {
         await tester.enterText(textField, 'Doctor, can I take the medicine after dinner?');
         await tester.pump();
 
-        // Tap the send button (IconButton/Material with up arrow)
-        final sendButton = find.byIcon(Icons.arrow_upward_rounded);
+        // Tap the send button (IconButton/Material with send icon)
+        final sendButton = find.byIcon(Icons.send_rounded);
         expect(sendButton, findsOneWidget);
         await tester.tap(sendButton);
         await tester.pump();

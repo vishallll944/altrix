@@ -34,6 +34,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
     final user = ref.watch(authProvider).user;
     final userName = user?.name.trim() ?? '';
     final conversationsAsync = ref.watch(conversationsProvider);
+    final localReadIds = ref.watch(localReadConversationsProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -79,7 +80,26 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                     onRetry: () => ref.invalidate(conversationsProvider),
                   ),
                   data: (conversations) {
-                    final unreadCount = conversations.fold<int>(
+                    // Apply local-read override: zero unread for conversations
+                    // the user has opened this session (optimistic clear).
+                    final effectiveConversations = conversations.map((c) {
+                      if (localReadIds.contains(c.id)) {
+                        return ConversationModel(
+                          id: c.id,
+                          title: c.title,
+                          preview: c.preview,
+                          lastMessageAt: c.lastMessageAt,
+                          unreadCount: 0,
+                          topic: c.topic,
+                          avatarUrl: c.avatarUrl,
+                          participantName: c.participantName,
+                          participantRole: c.participantRole,
+                          raw: c.raw,
+                        );
+                      }
+                      return c;
+                    }).toList();
+                    final unreadCount = effectiveConversations.fold<int>(
                       0,
                       (sum, c) => sum + c.unreadCount,
                     );
@@ -141,11 +161,14 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                         ),
                         SizedBox(height: responsive.rz(14)),
                         if (conversations.isNotEmpty) ...[
-                          for (final conversation in conversations)
+                          for (final conversation in effectiveConversations)
                             Padding(
                               padding: EdgeInsets.only(bottom: responsive.rz(10)),
                               child: ConversationTile(
                                 conversation: conversation,
+                                // We don't have real clinician presence on the list
+                                // screen — only show dot inside the chat.
+                                isOnline: false,
                                 onTap: () => _openThread(context, conversation),
                               ),
                             ),
@@ -170,15 +193,23 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
   }
 
   void _openThread(BuildContext context, ConversationModel conversation) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ConversationDetailScreen(
-          conversationId: conversation.id,
-          title: conversation.effectiveName,
-          participantName: conversation.effectiveName,
-        ),
-      ),
+    // Mark as locally-read immediately (zeroes badge before API refresh)
+    ref.read(localReadConversationsProvider.notifier).update(
+      (s) => {...s, conversation.id},
     );
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => ConversationDetailScreen(
+              conversationId: conversation.id,
+              title: conversation.effectiveName,
+              participantName: conversation.effectiveName,
+            ),
+          ),
+        )
+        // Refresh the conversations list when the user comes back so
+        // the unread badge reflects real server state.
+        .then((_) => ref.invalidate(conversationsProvider));
   }
 
   void _openCareChat(BuildContext context) {
@@ -186,16 +217,22 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
     final existingConvo = (conversations != null && conversations.isNotEmpty)
         ? conversations.first
         : null;
-
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ConversationDetailScreen(
-          conversationId: existingConvo?.id ?? '',
-          title: existingConvo?.effectiveName ?? 'Care Team',
-          participantName: existingConvo?.effectiveName ?? 'Care Team',
-        ),
-      ),
-    );
+    if (existingConvo != null) {
+      ref.read(localReadConversationsProvider.notifier).update(
+        (s) => {...s, existingConvo.id},
+      );
+    }
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => ConversationDetailScreen(
+              conversationId: existingConvo?.id ?? '',
+              title: existingConvo?.effectiveName ?? 'Care Team',
+              participantName: existingConvo?.effectiveName ?? 'Care Team',
+            ),
+          ),
+        )
+        .then((_) => ref.invalidate(conversationsProvider));
   }
 }
 
@@ -482,10 +519,12 @@ class ConversationTile extends StatelessWidget {
     super.key,
     required this.conversation,
     required this.onTap,
+    this.isOnline = false,
   });
 
   final ConversationModel conversation;
   final VoidCallback onTap;
+  final bool isOnline;
 
   @override
   Widget build(BuildContext context) {
@@ -512,7 +551,10 @@ class ConversationTile extends StatelessWidget {
           child: Row(
             children: [
               // Care Team / Clinician Profile Avatar Icon
-              _ParticipantAvatar(conversation: conversation),
+              _ParticipantAvatar(
+                conversation: conversation,
+                isOnline: isOnline,
+              ),
               const SizedBox(width: 14),
               // Message details
               Expanded(
@@ -607,9 +649,10 @@ class ConversationTile extends StatelessWidget {
 }
 
 class _ParticipantAvatar extends StatelessWidget {
-  const _ParticipantAvatar({required this.conversation});
+  const _ParticipantAvatar({required this.conversation, this.isOnline = false});
 
   final ConversationModel conversation;
+  final bool isOnline;
 
   @override
   Widget build(BuildContext context) {
@@ -645,19 +688,21 @@ class _ParticipantAvatar extends StatelessWidget {
             ),
           ),
         ),
-        Positioned(
-          right: 0,
-          bottom: 0,
-          child: Container(
-            width: 12,
-            height: 12,
-            decoration: BoxDecoration(
-              color: const Color(0xFF10B981),
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.surface, width: 2),
+        // WhatsApp-style presence dot: only shown when online
+        if (isOnline)
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Container(
+              width: 13,
+              height: 13,
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981),
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.surface, width: 2.5),
+              ),
             ),
           ),
-        ),
       ],
     );
   }

@@ -10,6 +10,7 @@ import '../features/patient/data/models/patient_models.dart';
 import '../features/patient/data/services/chat_socket_service.dart';
 import '../features/patient/presentation/providers/chat_messages_provider.dart';
 import '../features/patient/presentation/providers/patient_providers.dart';
+import '../features/patient/presentation/providers/presence_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/empty_state_card.dart';
 
@@ -50,7 +51,6 @@ class ConversationDetailScreenState
   String? _error;
   bool _isSending = false;
   bool _isDoctorTyping = false;
-  String _doctorPresenceStatus = 'online';
   late String _threadId;
 
   // Track if user is near the bottom so we only auto-scroll when appropriate
@@ -63,6 +63,13 @@ class ConversationDetailScreenState
     _socketService = ChatSocketService();
 
     _scrollController.addListener(_onScroll);
+    if (_threadId.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.read(localReadConversationsProvider.notifier).markAsRead(_threadId);
+        }
+      });
+    }
     _initChat();
   }
 
@@ -85,8 +92,8 @@ class ConversationDetailScreenState
   void _onScroll() {
     if (!_scrollController.hasClients) return;
     final pos = _scrollController.position;
-    // Consider "near bottom" if within 120px of the bottom
-    _userIsNearBottom = (pos.maxScrollExtent - pos.pixels) < 120;
+    // With reverse: true, 0.0 is the bottom (latest messages)
+    _userIsNearBottom = pos.pixels < 120;
   }
 
   void _initChat() async {
@@ -127,6 +134,10 @@ class ConversationDetailScreenState
             .listen(
               (payload) {
                 if (!mounted) return;
+                // Any SSE activity means the server (clinician side) is live
+                ref
+                    .read(clinicianPresenceProvider(_threadId).notifier)
+                    .markOnline();
                 final messageMap = payload['message'] is Map<String, dynamic>
                     ? payload['message'] as Map<String, dynamic>
                     : (payload['data'] is Map<String, dynamic>
@@ -177,6 +188,7 @@ class ConversationDetailScreenState
       if (!mounted) return;
       if (result.threadId.isNotEmpty) {
         _threadId = result.threadId;
+        ref.read(localReadConversationsProvider.notifier).markAsRead(_threadId);
       }
       ref.read(chatMessagesProvider(_threadId).notifier).seedIfEmpty(result.messages);
       if (mounted) {
@@ -211,8 +223,6 @@ class ConversationDetailScreenState
     }
   }
 
-
-
   void _connectSocket() async {
     final user = ref.read(authProvider).user;
     final patientId = user?.id ?? 'patient_${DateTime.now().millisecondsSinceEpoch}';
@@ -238,6 +248,10 @@ class ConversationDetailScreenState
     _messageSub?.cancel();
     _messageSub = _socketService.onNewMessage.listen((incoming) {
       if (!mounted) return;
+      // Socket message means clinician side is active
+      ref
+          .read(clinicianPresenceProvider(_threadId).notifier)
+          .markOnline();
       _mergeMessages([incoming], isFromRealtime: true);
     });
 
@@ -245,6 +259,12 @@ class ConversationDetailScreenState
     _typingSub = _socketService.onTypingStatus.listen((isTyping) {
       if (!mounted) return;
       setState(() => _isDoctorTyping = isTyping);
+      if (isTyping) {
+        // Typing means clinician is online
+        ref
+            .read(clinicianPresenceProvider(_threadId).notifier)
+            .markOnline();
+      }
       if (isTyping && _userIsNearBottom) {
         _scrollToBottom();
       }
@@ -253,7 +273,12 @@ class ConversationDetailScreenState
     _presenceSub?.cancel();
     _presenceSub = _socketService.onPresenceChange.listen((status) {
       if (!mounted) return;
-      setState(() => _doctorPresenceStatus = status);
+      final notifier = ref.read(clinicianPresenceProvider(_threadId).notifier);
+      if (status == 'online') {
+        notifier.markOnline();
+      } else {
+        notifier.markOffline();
+      }
     });
   }
 
@@ -295,11 +320,10 @@ class ConversationDetailScreenState
     final currentUserName = user?.name;
 
     for (final message in messages) {
-      if (!message.isRead &&
-          !message.isFromMe(
-            currentUserId: currentUserId,
-            currentUserName: currentUserName,
-          )) {
+      if (!message.isFromMe(
+        currentUserId: currentUserId,
+        currentUserName: currentUserName,
+      )) {
         ref
             .read(patientRepositoryProvider)
             .markMessageRead(message.id)
@@ -308,26 +332,26 @@ class ConversationDetailScreenState
     }
   }
 
-  /// Scroll to bottom after the current frame renders.
-  /// [force] = true scrolls even if user is not near bottom (used on initial load).
+  /// Scroll to bottom (latest message) after the current frame renders.
+  /// [force] = true scrolls even if user is not near bottom.
   void _scrollToBottom({bool force = false}) {
     if (!force && !_userIsNearBottom) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 280),
+          0.0,
+          duration: const Duration(milliseconds: 220),
           curve: Curves.easeOutCubic,
         );
       }
     });
   }
 
-  /// Jump to bottom immediately without animation (used on screen open).
+  /// Jump to bottom (latest message) immediately without animation.
   void _scrollToBottomImmediate() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        _scrollController.jumpTo(0.0);
       }
     });
   }
@@ -420,6 +444,10 @@ class ConversationDetailScreenState
     // Watch live messages from the provider — updates trigger rebuild
     final messages = ref.watch(chatMessagesProvider(_threadId));
 
+    // Watch clinician presence — true = online (green dot), false = offline
+    final clinicianIsOnline =
+        ref.watch(clinicianPresenceProvider(_threadId));
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -469,15 +497,17 @@ class ConversationDetailScreenState
                 Positioned(
                   right: -1,
                   bottom: -1,
-                  child: Container(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 400),
                     width: 11,
                     height: 11,
                     decoration: BoxDecoration(
-                      color: _doctorPresenceStatus == 'online'
+                      color: clinicianIsOnline
                           ? const Color(0xFF10B981)
                           : const Color(0xFF94A3B8),
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.surface, width: 2),
+                      border:
+                          Border.all(color: AppColors.surface, width: 2),
                     ),
                   ),
                 ),
@@ -505,7 +535,7 @@ class ConversationDetailScreenState
                       _LiveDotSmall(
                         color: _isDoctorTyping
                             ? const Color(0xFF6366F1)
-                            : (_doctorPresenceStatus == 'online'
+                            : (clinicianIsOnline
                                 ? const Color(0xFF10B981)
                                 : const Color(0xFF94A3B8)),
                       ),
@@ -514,9 +544,9 @@ class ConversationDetailScreenState
                         child: Text(
                           _isDoctorTyping
                               ? 'Doctor is typing...'
-                              : (_doctorPresenceStatus == 'online'
-                                  ? 'Active now · Real-time encrypted'
-                                  : 'Offline · Real-time encrypted'),
+                              : (clinicianIsOnline
+                                  ? 'Online · End-to-end encrypted'
+                                  : 'Offline · End-to-end encrypted'),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -526,7 +556,7 @@ class ConversationDetailScreenState
                                 : FontWeight.w500,
                             color: _isDoctorTyping
                                 ? AppColors.primary
-                                : (_doctorPresenceStatus == 'online'
+                                : (clinicianIsOnline
                                     ? const Color(0xFF059669)
                                     : AppColors.textTertiary),
                           ),
@@ -596,27 +626,39 @@ class ConversationDetailScreenState
                           )
                         : ListView.builder(
                             controller: _scrollController,
+                            reverse: true,
                             padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
                             itemCount: messages.length + (_isDoctorTyping ? 1 : 0),
                             itemBuilder: (context, index) {
-                              if (index == messages.length && _isDoctorTyping) {
+                              // With reverse: true, index 0 is at the very bottom
+                              if (_isDoctorTyping && index == 0) {
                                 return _DoctorTypingBubble(
                                   doctorName: displayName,
                                   doctorInitials: initials,
                                 );
                               }
-                              final message = messages[index];
+                              // Map reversed index to chronological list (0=oldest, length-1=newest)
+                              final msgIndex = _isDoctorTyping
+                                  ? (messages.length - index)
+                                  : (messages.length - 1 - index);
+
+                              if (msgIndex < 0 || msgIndex >= messages.length) {
+                                return const SizedBox.shrink();
+                              }
+
+                              final message = messages[msgIndex];
                               final isMe = message.isFromMe(
                                 currentUserId: currentUserId,
                                 currentUserName: currentUserName,
                               );
-                              final showDate = index == 0 ||
+                              final showDate = msgIndex == 0 ||
                                   _shouldShowDateDivider(
-                                    messages[index - 1],
+                                    messages[msgIndex - 1],
                                     message,
                                   );
 
                               return Column(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   if (showDate)
                                     _DateDivider(dateStr: message.createdAt),
@@ -631,94 +673,16 @@ class ConversationDetailScreenState
                             },
                           ),
           ),
-          // Bottom Message Input Bar
-          SafeArea(
-            top: false,
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                border: Border(
-                  top: BorderSide(
-                    color: AppColors.border.withValues(alpha: 0.9),
-                  ),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.navy.withValues(alpha: 0.04),
-                    blurRadius: 10,
-                    offset: const Offset(0, -3),
-                  ),
-                ],
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.background,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: TextField(
-                        controller: _controller,
-                        focusNode: _focusNode,
-                        maxLines: 5,
-                        minLines: 1,
-                        textCapitalization: TextCapitalization.sentences,
-                        style: const TextStyle(fontSize: 14.5),
-                        decoration: const InputDecoration(
-                          hintText: 'Type your message...',
-                          hintStyle: TextStyle(
-                            color: AppColors.textTertiary,
-                            fontSize: 14.5,
-                          ),
-                          border: InputBorder.none,
-                          isDense: true,
-                          contentPadding:
-                              EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        onChanged: _onTextChanged,
-                        onSubmitted: (_) => _sendMessage(),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 2),
-                    child: Material(
-                      color: AppColors.primary,
-                      shape: const CircleBorder(),
-                      child: InkWell(
-                        onTap: _sendMessage,
-                        customBorder: const CircleBorder(),
-                        child: Container(
-                          width: 44,
-                          height: 44,
-                          padding: const EdgeInsets.all(10),
-                          child: _isSending
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.arrow_upward_rounded,
-                                  color: Colors.white,
-                                  size: 22,
-                                ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          // Bottom Message Input Bar — WhatsApp-style
+          _InputBar(
+            controller: _controller,
+            focusNode: _focusNode,
+            isSending: _isSending,
+            onChanged: (v) {
+              _onTextChanged(v);
+              setState(() {});
+            },
+            onSend: _sendMessage,
           ),
         ],
       ),
@@ -753,18 +717,16 @@ class _ChatMessageBubble extends StatelessWidget {
     final timeStr = message.displayTime;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Row(
-        mainAxisAlignment: isMe
-            ? MainAxisAlignment.end
-            : MainAxisAlignment.start,
+        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // If message is from clinician/other user, show their profile avatar icon
-          if (!isMe) ...[
+          // Clinician avatar (left side only)
+          if (!isMe)
             Container(
-              width: 32,
-              height: 32,
+              width: 30,
+              height: 30,
               margin: const EdgeInsets.only(right: 8, bottom: 2),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
@@ -782,122 +744,126 @@ class _ChatMessageBubble extends StatelessWidget {
                 child: Text(
                   participantInitials,
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w800,
                     color: AppColors.primary,
                   ),
                 ),
               ),
             ),
-          ],
+
+          // Message bubble
           Flexible(
             child: Column(
-              crossAxisAlignment: isMe
-                  ? CrossAxisAlignment.end
-                  : CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
+                // Sender name (clinician only)
                 if (!isMe)
                   Padding(
-                    padding: const EdgeInsets.only(left: 4, bottom: 4),
+                    padding: const EdgeInsets.only(left: 4, bottom: 3),
                     child: Text(
                       message.senderName.isNotEmpty
                           ? message.senderName
                           : participantName,
                       style: const TextStyle(
-                        fontSize: 11.5,
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textSecondary,
                       ),
                     ),
                   ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 11,
-                  ),
+
+                // Bubble
+                DecoratedBox(
                   decoration: BoxDecoration(
                     color: isMe ? AppColors.primary : AppColors.surface,
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(18),
                       topRight: const Radius.circular(18),
-                      bottomLeft: isMe
-                          ? const Radius.circular(18)
-                          : const Radius.circular(4),
-                      bottomRight: isMe
-                          ? const Radius.circular(4)
-                          : const Radius.circular(18),
+                      bottomLeft:
+                          isMe ? const Radius.circular(18) : const Radius.circular(4),
+                      bottomRight:
+                          isMe ? const Radius.circular(4) : const Radius.circular(18),
                     ),
                     border: isMe ? null : Border.all(color: AppColors.border),
                     boxShadow: [
                       BoxShadow(
                         color: (isMe ? AppColors.primary : AppColors.navy)
-                            .withValues(alpha: isMe ? 0.2 : 0.04),
-                        blurRadius: 8,
+                            .withValues(alpha: isMe ? 0.18 : 0.04),
+                        blurRadius: 6,
                         offset: const Offset(0, 2),
                       ),
                     ],
                   ),
-                  child: Column(
-                    crossAxisAlignment: isMe
-                        ? CrossAxisAlignment.end
-                        : CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        message.body,
-                        style: TextStyle(
-                          fontSize: 14.5,
-                          height: 1.35,
-                          color:
-                              isMe ? Colors.white : AppColors.textPrimary,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 9,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: isMe
+                          ? CrossAxisAlignment.end
+                          : CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          message.body,
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            height: 1.38,
+                            color: isMe ? Colors.white : AppColors.textPrimary,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (timeStr.isNotEmpty)
+                        const SizedBox(height: 3),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
                             Text(
-                              timeStr,
+                              timeStr.isNotEmpty ? timeStr : '--:--',
                               style: TextStyle(
                                 fontSize: 10.5,
                                 color: isMe
-                                    ? Colors.white.withValues(alpha: 0.75)
+                                    ? Colors.white.withValues(alpha: 0.72)
                                     : AppColors.textTertiary,
                               ),
                             ),
-                          if (isMe) ...[
-                            const SizedBox(width: 4),
-                            if (message.isPending)
-                              const SizedBox(
-                                width: 10,
-                                height: 10,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 1.5,
-                                  color: Colors.white,
+                            if (isMe) ...[
+                              const SizedBox(width: 4),
+                              if (message.isPending)
+                                SizedBox(
+                                  width: 10,
+                                  height: 10,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 1.5,
+                                    color: Colors.white.withValues(alpha: 0.72),
+                                  ),
+                                )
+                              else if (message.hasError)
+                                const Icon(
+                                  Icons.error_outline_rounded,
+                                  size: 12,
+                                  color: Colors.amberAccent,
+                                )
+                              else
+                                Icon(
+                                  message.isRead
+                                      ? Icons.done_all_rounded
+                                      : Icons.done_rounded,
+                                  size: 13,
+                                  color: Colors.white.withValues(alpha: 0.85),
                                 ),
-                              )
-                            else if (message.hasError)
-                              const Icon(
-                                Icons.error_outline_rounded,
-                                size: 12,
-                                color: Colors.amberAccent,
-                              )
-                            else
-                              Icon(
-                                Icons.done_all_rounded,
-                                size: 13,
-                                color:
-                                    Colors.white.withValues(alpha: 0.85),
-                              ),
+                            ],
                           ],
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
           ),
+
           if (isMe) const SizedBox(width: 4),
         ],
       ),
@@ -1118,3 +1084,171 @@ class _DoctorTypingBubbleState extends State<_DoctorTypingBubble>
     );
   }
 }
+
+/// Standalone input bar widget — tracks its own focus state so the parent
+/// does not need to rebuild the entire screen for border animation.
+class _InputBar extends StatefulWidget {
+  const _InputBar({
+    required this.controller,
+    required this.focusNode,
+    required this.isSending,
+    required this.onChanged,
+    required this.onSend,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final bool isSending;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onSend;
+
+  @override
+  State<_InputBar> createState() => _InputBarState();
+}
+
+class _InputBarState extends State<_InputBar> {
+  @override
+  void initState() {
+    super.initState();
+    widget.focusNode.addListener(_onFocusChange);
+  }
+
+  void _onFocusChange() => setState(() {});
+
+  @override
+  void dispose() {
+    widget.focusNode.removeListener(_onFocusChange);
+    super.dispose();
+  }
+
+  bool get _hasText => widget.controller.text.trim().isNotEmpty;
+  bool get _focused => widget.focusNode.hasFocus;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          border: Border(
+            top: BorderSide(color: AppColors.border.withValues(alpha: 0.8)),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.navy.withValues(alpha: 0.05),
+              blurRadius: 12,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // Text field with rounded border
+              Expanded(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOut,
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(26),
+                    border: Border.all(
+                      color: _focused
+                          ? AppColors.primary.withValues(alpha: 0.45)
+                          : AppColors.border,
+                      width: _focused ? 1.5 : 1.0,
+                    ),
+                    boxShadow: _focused
+                        ? [
+                            BoxShadow(
+                              color:
+                                  AppColors.primary.withValues(alpha: 0.07),
+                              blurRadius: 6,
+                              spreadRadius: 0,
+                            ),
+                          ]
+                        : null,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 2,
+                  ),
+                  child: TextField(
+                    controller: widget.controller,
+                    focusNode: widget.focusNode,
+                    maxLines: 5,
+                    minLines: 1,
+                    textCapitalization: TextCapitalization.sentences,
+                    style: const TextStyle(fontSize: 15, height: 1.4),
+                    decoration: const InputDecoration(
+                      hintText: 'Message...',
+                      hintStyle: TextStyle(
+                        color: AppColors.textTertiary,
+                        fontSize: 15,
+                      ),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(vertical: 10),
+                    ),
+                    onChanged: widget.onChanged,
+                    onSubmitted: (_) => widget.onSend(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // Animated send button
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOut,
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: _hasText ? AppColors.primary : AppColors.border,
+                  shape: BoxShape.circle,
+                  boxShadow: _hasText
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primary.withValues(alpha: 0.32),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    onTap: _hasText ? widget.onSend : null,
+                    customBorder: const CircleBorder(),
+                    child: Center(
+                      child: widget.isSending
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.send_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+

@@ -44,13 +44,13 @@ class ChatMessagesNotifier extends StateNotifier<List<MessageModel>> {
       }
     }
 
-    // Sort by createdAt to keep chronological order
+    // Sort by createdAt to keep chronological order (oldest to newest)
     updated.sort((a, b) {
       final ta = DateTime.tryParse(a.createdAt);
       final tb = DateTime.tryParse(b.createdAt);
       if (ta == null && tb == null) return 0;
-      if (ta == null) return -1;
-      if (tb == null) return 1;
+      if (ta == null) return 1; // Put missing dates at bottom (recent), not top!
+      if (tb == null) return -1;
       return ta.compareTo(tb);
     });
 
@@ -75,12 +75,27 @@ class ChatMessagesNotifier extends StateNotifier<List<MessageModel>> {
     state = [...state, message];
   }
 
-  /// Replace a pending message (by tempId) with the confirmed server version.
+  /// Replace a pending message (by tempId) with the confirmed server version,
+  /// preserving optimistic timestamp, sender role, and fields if server response is minimal.
   void confirmMessage(String tempId, MessageModel confirmed) {
     final idx = state.indexWhere((m) => m.id == tempId);
     if (idx != -1) {
+      final old = state[idx];
+      final safeConfirmed = MessageModel(
+        id: confirmed.id.isNotEmpty ? confirmed.id : old.id,
+        threadId: confirmed.threadId.isNotEmpty ? confirmed.threadId : old.threadId,
+        body: confirmed.body.isNotEmpty ? confirmed.body : old.body,
+        sender: confirmed.sender.isNotEmpty ? confirmed.sender : old.sender,
+        senderName: confirmed.senderName.isNotEmpty ? confirmed.senderName : old.senderName,
+        senderAvatar: confirmed.senderAvatar.isNotEmpty ? confirmed.senderAvatar : old.senderAvatar,
+        createdAt: confirmed.createdAt.isNotEmpty ? confirmed.createdAt : old.createdAt,
+        isRead: true,
+        isPending: false,
+        hasError: false,
+        raw: {...old.raw, ...confirmed.raw},
+      );
       final updated = List<MessageModel>.from(state);
-      updated[idx] = confirmed;
+      updated[idx] = safeConfirmed;
       state = updated;
     } else if (!state.any((m) => m.id == confirmed.id)) {
       state = [...state, confirmed];
@@ -97,10 +112,19 @@ class ChatMessagesNotifier extends StateNotifier<List<MessageModel>> {
     }
   }
 
-  /// Seed with initial messages (only when list is empty to avoid overwrite).
+  /// Seed with initial messages sorted chronologically (oldest to newest).
   void seedIfEmpty(List<MessageModel> messages) {
     if (state.isEmpty && messages.isNotEmpty) {
-      state = List.of(messages);
+      final list = List.of(messages);
+      list.sort((a, b) {
+        final ta = DateTime.tryParse(a.createdAt);
+        final tb = DateTime.tryParse(b.createdAt);
+        if (ta == null && tb == null) return 0;
+        if (ta == null) return 1;
+        if (tb == null) return -1;
+        return ta.compareTo(tb);
+      });
+      state = list;
     } else if (messages.isNotEmpty) {
       merge(messages);
     }

@@ -715,7 +715,7 @@ class MessageModel {
         'role',
         'senderRole',
         'sender_role',
-      ]);
+      ], fallback: 'patient');
     }
     if (sName.isEmpty) {
       sName = readString(json, [
@@ -735,6 +735,15 @@ class MessageModel {
       ]);
     }
 
+    final parsedCreatedAt = readString(json, [
+      'createdAt',
+      'created_at',
+      'sentAt',
+      'sent_at',
+      'timestamp',
+      'time',
+    ]);
+
     return MessageModel(
       id: readString(json, ['id', '_id', 'messageId']),
       threadId: readString(json, ['threadId', 'thread_id']),
@@ -742,13 +751,12 @@ class MessageModel {
       sender: senderStr,
       senderName: sName,
       senderAvatar: sAvatar,
-      createdAt: readString(json, [
-        'createdAt',
-        'created_at',
-        'sentAt',
-        'sent_at',
-      ]),
-      isRead: readBool(json, ['isRead', 'is_read', 'read'], fallback: true),
+      createdAt: parsedCreatedAt.isNotEmpty
+          ? parsedCreatedAt
+          : DateTime.now().toIso8601String(),
+      isRead: json['readAt'] != null ||
+          json['read_at'] != null ||
+          readBool(json, ['isRead', 'is_read', 'read'], fallback: false),
       raw: json,
     );
   }
