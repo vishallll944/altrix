@@ -24,7 +24,6 @@ Future<void> main() async {
     ],
   );
 
-  await container.read(authProvider.notifier).restoreSession();
 
   runApp(
     UncontrolledProviderScope(

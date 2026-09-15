@@ -6,21 +6,12 @@ import '../../../../core/config/env.dart';
 import '../models/patient_models.dart';
 
 /// Real-time chat service powered by Socket.io client.
-/// Handles instant messaging (<20ms), doctor typing indicator, and presence changes.
+/// Handles instant messaging (<20ms), doctor typing indicator, and presence.
 class ChatSocketService {
   ChatSocketService({this.baseUrl});
 
   final String? baseUrl;
   IO.Socket? _socket;
-
-  IO.Socket get socket {
-    if (_socket == null) {
-      throw StateError(
-        'Socket has not been initialized. Call connectSocket() first.',
-      );
-    }
-    return _socket!;
-  }
 
   bool get isConnected => _socket?.connected ?? false;
 
@@ -43,6 +34,7 @@ class ChatSocketService {
   String? _currentThreadId;
   String? _currentPatientId;
   String? _currentPatientName;
+  String? _currentToken;
 
   /// Connects to the Socket.io server with real-time events.
   void connectSocket({
@@ -55,23 +47,32 @@ class ChatSocketService {
     _currentThreadId = threadId;
     _currentPatientId = patientId;
     _currentPatientName = patientName;
+    _currentToken = token;
 
-    // Disconnect existing socket if any
+    // Disconnect existing socket cleanly before reconnecting
     if (_socket != null) {
-      disconnect();
+      _socket!.off('new_message');
+      _socket!.off('typing_status');
+      _socket!.off('presence_change');
+      _socket?.disconnect();
+      _socket?.dispose();
+      _socket = null;
     }
 
     final domain = (serverUrl != null && serverUrl.isNotEmpty)
         ? serverUrl
         : (baseUrl != null && baseUrl!.isNotEmpty ? baseUrl! : Env.apiBaseUrl);
 
+    // Use polling first (more reliable through proxies/firewalls),
+    // then upgrade to WebSocket — this is the standard socket.io sequence.
     final optionsBuilder = IO.OptionBuilder()
-        .setTransports(['websocket', 'polling'])
+        .setTransports(['polling', 'websocket'])
         .setPath('/api/socket/io')
         .enableAutoConnect()
         .enableReconnection()
-        .setReconnectionAttempts(3)
-        .setReconnectionDelay(3000);
+        .setReconnectionAttempts(double.infinity.toInt()) // retry forever
+        .setReconnectionDelay(2000)
+        .setReconnectionDelayMax(10000);
 
     if (token != null && token.isNotEmpty) {
       optionsBuilder.setAuth({'token': token});
@@ -79,26 +80,23 @@ class ChatSocketService {
       optionsBuilder.setQuery({'token': token});
     }
 
-    try {
-      final newSocket = IO.io(domain, optionsBuilder.build());
-      _socket = newSocket;
+    final newSocket = IO.io(domain, optionsBuilder.build());
+    _socket = newSocket;
 
-    // 1. Connection Success
+    // 1. Connection success
     newSocket.onConnect((_) {
-      if (kDebugMode) {
-        debugPrint('[ChatSocket] Socket Connected to $domain (thread: $threadId)');
-      }
+      debugPrint('[ChatSocket] ✅ Connected → $domain (thread: $threadId)');
       _connectionStatusController.add(true);
       onConnectionChanged?.call(true);
 
-      // Register User
+      // Register user identity on the server
       newSocket.emit('register_user', {
         'id': patientId,
         'name': patientName,
         'role': 'patient',
       });
 
-      // Join Chat Thread Room
+      // Join the specific chat thread room
       newSocket.emit('join_thread', {
         'threadId': threadId,
         'user': {
@@ -109,11 +107,9 @@ class ChatSocketService {
       });
     });
 
-    // 2. Listen for Incoming Real-Time Messages (<20ms)
+    // 2. Incoming real-time messages from clinician
     newSocket.on('new_message', (data) {
-      if (kDebugMode) {
-        debugPrint('[ChatSocket] New Incoming Message: $data');
-      }
+      debugPrint('[ChatSocket] 📨 new_message: $data');
       try {
         Map<String, dynamic>? messageMap;
         if (data is Map<String, dynamic>) {
@@ -138,11 +134,8 @@ class ChatSocketService {
       }
     });
 
-    // 3. Listen for Doctor Typing Status ("Doctor is typing...")
+    // 3. Doctor typing indicator
     newSocket.on('typing_status', (data) {
-      if (kDebugMode) {
-        debugPrint('[ChatSocket] Typing status: $data');
-      }
       bool isDoctorTyping = false;
       if (data is Map) {
         isDoctorTyping = data['isTyping'] == true;
@@ -153,11 +146,8 @@ class ChatSocketService {
       onDoctorTypingChanged?.call(isDoctorTyping);
     });
 
-    // 4. Listen for Presence (Doctor Online/Offline)
+    // 4. Clinician presence (online/offline)
     newSocket.on('presence_change', (data) {
-      if (kDebugMode) {
-        debugPrint('[ChatSocket] Presence change: $data');
-      }
       String status = 'online';
       if (data is Map && data['status'] != null) {
         status = data['status'].toString();
@@ -168,51 +158,77 @@ class ChatSocketService {
       onDoctorPresenceChanged?.call(status);
     });
 
-    // Lifecycle events
-    newSocket.onDisconnect((_) {
-      if (kDebugMode) {
-        debugPrint('[ChatSocket] Socket Disconnected');
-      }
+    // 5. Disconnected
+    newSocket.onDisconnect((reason) {
+      debugPrint('[ChatSocket] ⚡ Disconnected: $reason');
       _connectionStatusController.add(false);
       onConnectionChanged?.call(false);
     });
 
+    // 6. Connection error — LOG ONLY, do NOT disconnect.
+    //    Socket.io fires connect_error during the polling→websocket upgrade
+    //    phase, which is completely normal. Disconnecting here would prevent
+    //    the socket from ever establishing a stable connection.
     newSocket.onConnectError((err) {
-      if (kDebugMode) {
-        debugPrint('[ChatSocket] Connect notice: $err');
-      }
-      try {
-        newSocket.disconnect();
-      } catch (_) {}
+      debugPrint('[ChatSocket] ⚠️ connect_error (will retry): $err');
+      // Do NOT call disconnect() here — let socket.io handle reconnection.
     });
 
     newSocket.onError((err) {
-      if (kDebugMode) {
-        debugPrint('[ChatSocket] Notice: $err');
-      }
+      debugPrint('[ChatSocket] ⚠️ error: $err');
     });
-    } catch (err) {
-      if (kDebugMode) {
-        debugPrint('[ChatSocket] Setup notice: $err');
-      }
-    }
+
+    newSocket.onReconnect((_) {
+      debugPrint('[ChatSocket] 🔄 Reconnected — re-joining thread $threadId');
+      // Re-register and re-join after reconnect
+      newSocket.emit('register_user', {
+        'id': patientId,
+        'name': patientName,
+        'role': 'patient',
+      });
+      newSocket.emit('join_thread', {
+        'threadId': threadId,
+        'user': {
+          'id': patientId,
+          'name': patientName,
+          'role': 'patient',
+        },
+      });
+    });
   }
 
-  // 5. Trigger Typing Event when Patient is typing in Textfield
+  /// Emit a message via socket immediately after REST send.
+  /// This lets the server broadcast the message to clinicians in real-time
+  /// while the REST API persists it in the database.
+  void emitMessage({
+    required String threadId,
+    required String message,
+    required String senderId,
+    required String senderName,
+    String tempId = '',
+  }) {
+    if (_socket == null || !isConnected) return;
+    _socket!.emit('send_message', {
+      'threadId': threadId,
+      'message': message,
+      'sender': {
+        'id': senderId,
+        'name': senderName,
+        'role': 'patient',
+      },
+      if (tempId.isNotEmpty) 'tempId': tempId,
+    });
+  }
+
+  // Typing indicators
   void sendTypingStart([String? threadId, String? patientId, String? patientName]) {
     final tid = threadId ?? _currentThreadId;
     final pid = patientId ?? _currentPatientId;
     final pname = patientName ?? _currentPatientName;
-
     if (tid == null || pid == null || _socket == null || !isConnected) return;
-
     _socket!.emit('typing_start', {
       'threadId': tid,
-      'user': {
-        'id': pid,
-        'name': pname ?? 'Patient',
-        'role': 'patient',
-      },
+      'user': {'id': pid, 'name': pname ?? 'Patient', 'role': 'patient'},
     });
   }
 
@@ -220,17 +236,20 @@ class ChatSocketService {
     final tid = threadId ?? _currentThreadId;
     final pid = patientId ?? _currentPatientId;
     final pname = patientName ?? _currentPatientName;
-
     if (tid == null || pid == null || _socket == null || !isConnected) return;
-
     _socket!.emit('typing_stop', {
       'threadId': tid,
-      'user': {
-        'id': pid,
-        'name': pname ?? 'Patient',
-        'role': 'patient',
-      },
+      'user': {'id': pid, 'name': pname ?? 'Patient', 'role': 'patient'},
     });
+  }
+
+  /// Call this when the app comes back to foreground to ensure the socket
+  /// is still alive, and reconnect if needed.
+  void reconnectIfNeeded() {
+    if (_socket != null && !isConnected) {
+      debugPrint('[ChatSocket] 🔄 App resumed — reconnecting socket');
+      _socket!.connect();
+    }
   }
 
   void disconnect() {
@@ -239,7 +258,9 @@ class ChatSocketService {
       _socket?.dispose();
     } catch (_) {}
     _socket = null;
-    _connectionStatusController.add(false);
+    if (!_connectionStatusController.isClosed) {
+      _connectionStatusController.add(false);
+    }
     onConnectionChanged?.call(false);
   }
 

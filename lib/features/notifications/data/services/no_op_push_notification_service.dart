@@ -20,6 +20,9 @@ class NoOpPushNotificationService implements PushNotifications {
   Future<void> saveDeviceToken(String token) async {}
 
   @override
+  void setAuthToken(String token) {}
+
+  @override
   Stream<RemoteMessage> get onForegroundMessage =>
       const Stream<RemoteMessage>.empty();
 }

@@ -34,7 +34,8 @@ class ConversationDetailScreen extends ConsumerStatefulWidget {
 }
 
 class ConversationDetailScreenState
-    extends ConsumerState<ConversationDetailScreen> {
+    extends ConsumerState<ConversationDetailScreen>
+    with WidgetsBindingObserver {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _focusNode = FocusNode();
@@ -59,6 +60,7 @@ class ConversationDetailScreenState
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _threadId = widget.conversationId;
     _socketService = ChatSocketService();
 
@@ -75,6 +77,7 @@ class ConversationDetailScreenState
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _sseSub?.cancel();
     _livePollTimer?.cancel();
     _messageSub?.cancel();
@@ -87,6 +90,17 @@ class ConversationDetailScreenState
     _scrollController.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  /// Reconnect the socket when the app comes back from background —
+  /// like WhatsApp/Instagram that reconnect instantly on foreground.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _socketService.reconnectIfNeeded();
+      // Also do a quick poll to catch any messages sent while in background
+      _pollLiveMessages();
+    }
   }
 
   void _onScroll() {
@@ -154,8 +168,8 @@ class ConversationDetailScreenState
       } catch (_) {}
     }
 
-    // Periodic live sync poll every 10 seconds as fallback to SSE stream
-    _livePollTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+    // Fallback poll every 5s in case socket drops (still much faster than 10s)
+    _livePollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (!mounted || _threadId.isEmpty) return;
       _pollLiveMessages();
     });
@@ -405,6 +419,17 @@ class ConversationDetailScreenState
           .read(chatMessagesProvider(_threadId).notifier)
           .confirmMessage(tempId, confirmed);
       setState(() => _isSending = false);
+
+      // Emit via socket so the server can broadcast to the clinician instantly.
+      // This is a fire-and-forget signal on top of the REST persistence.
+      _socketService.emitMessage(
+        threadId: _threadId,
+        message: text,
+        senderId: currentUserId,
+        senderName: currentUserName,
+        tempId: tempId,
+      );
+
       // Invalidate conversations list so lastMessage updates immediately
       ref.invalidate(conversationsProvider);
     } catch (err) {

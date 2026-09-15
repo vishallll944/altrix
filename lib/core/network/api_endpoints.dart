@@ -9,6 +9,9 @@ class ApiEndpoints {
   static const patientForgotPassword = '/api/patient/forgot-password';
   static const patientResetPassword = '/api/patient/reset-password';
 
+  // Device / push notifications
+  static const patientDeviceToken = '/api/patient/device-token';
+
   // Profile & home
   static const patientMe = '/api/patient/me';
   static const patientAvatar = '/api/patient/avatar';

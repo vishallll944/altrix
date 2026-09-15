@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -62,6 +64,9 @@ class AuthNotifier extends Notifier<AuthState> {
       try {
         final profile = await ref.read(authRepositoryProvider).getProfile();
         state = AuthState(user: profile, isRestoringSession: false);
+        final pushService = ref.read(pushNotificationServiceProvider);
+        pushService.setAuthToken(token);
+        await pushService.syncTokenForCurrentUser();
       } on ApiException catch (error) {
         if (error.statusCode == 401) {
           await _clearSession();
@@ -103,7 +108,9 @@ class AuthNotifier extends Notifier<AuthState> {
       await _saveSession(result.token);
       sessionSaved = true;
       state = AuthState(user: result.user, isRestoringSession: false);
-      await ref.read(pushNotificationServiceProvider).syncTokenForCurrentUser();
+      final pushService = ref.read(pushNotificationServiceProvider);
+      pushService.setAuthToken(result.token);
+      await pushService.syncTokenForCurrentUser();
       return true;
     } on ApiException catch (error, stackTrace) {
       debugPrint(
@@ -178,7 +185,9 @@ class AuthNotifier extends Notifier<AuthState> {
     String? emergencyContactPhone,
   }) async {
     try {
-      final profile = await ref.read(authRepositoryProvider).updateProfile(
+      final profile = await ref
+          .read(authRepositoryProvider)
+          .updateProfile(
             email: email,
             phone: phone,
             addressLine1: addressLine1,
@@ -194,7 +203,9 @@ class AuthNotifier extends Notifier<AuthState> {
       this.state = this.state.copyWith(error: error.message);
       return false;
     } catch (_) {
-      this.state = this.state.copyWith(error: 'Something went wrong. Please try again.');
+      this.state = this.state.copyWith(
+        error: 'Something went wrong. Please try again.',
+      );
       return false;
     }
   }
@@ -223,10 +234,9 @@ class AuthNotifier extends Notifier<AuthState> {
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      await ref.read(authRepositoryProvider).resetPassword(
-            token: token,
-            password: password,
-          );
+      await ref
+          .read(authRepositoryProvider)
+          .resetPassword(token: token, password: password);
       state = state.copyWith(isLoading: false);
       return true;
     } on ApiException catch (error) {
@@ -271,7 +281,9 @@ class AuthNotifier extends Notifier<AuthState> {
 
   Future<bool> uploadAvatar(String filePath) async {
     try {
-      final avatarUrl = await ref.read(authRepositoryProvider).uploadAvatar(filePath);
+      final avatarUrl = await ref
+          .read(authRepositoryProvider)
+          .uploadAvatar(filePath);
       if (state.user != null && avatarUrl != null) {
         // Update user entity avatarUrl
         state = state.copyWith(
@@ -285,7 +297,9 @@ class AuthNotifier extends Notifier<AuthState> {
       state = state.copyWith(error: error.message);
       return false;
     } catch (_) {
-      state = state.copyWith(error: 'Failed to upload avatar. Please try again.');
+      state = state.copyWith(
+        error: 'Failed to upload avatar. Please try again.',
+      );
       return false;
     }
   }

@@ -40,8 +40,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late final Animation<double> _ringRotation;
 
   bool _navigated = false;
-  bool _animationComplete = false;
-  bool _sessionReady = false;
+  // No separate boolean flags needed — Future.wait handles sequencing.
 
   @override
   void initState() {
@@ -93,31 +92,31 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
 
-    _controller.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        _animationComplete = true;
-        _tryNavigate();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => _start());
+  }
+
+  Future<void> _start() async {
+    if (!widget.skipAnimation) _controller.forward();
+
+    final startTime = DateTime.now();
+
+    try {
+      await ref
+          .read(authProvider.notifier)
+          .restoreSession()
+          .timeout(const Duration(seconds: 8), onTimeout: () {});
+    } catch (_) {}
+
+    if (!widget.skipAnimation) {
+      final elapsed = DateTime.now().difference(startTime);
+      final remaining = widget.duration - elapsed;
+      if (remaining > Duration.zero) {
+        await Future.delayed(remaining);
       }
-    });
-
-    WidgetsBinding.instance.addPostFrameCallback((_) => _restoreSession());
-
-    if (widget.skipAnimation) {
-      _animationComplete = true;
-    } else {
-      _controller.forward();
     }
-  }
 
-  Future<void> _restoreSession() async {
-    await ref.read(authProvider.notifier).restoreSession();
     if (!mounted) return;
-    _sessionReady = true;
-    _tryNavigate();
-  }
-
-  void _tryNavigate() {
-    if (!_animationComplete || !_sessionReady) return;
     _goNext();
   }
 

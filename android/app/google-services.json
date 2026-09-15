@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "814395010183",
+    "project_id": "altrixs-31959",
+    "storage_bucket": "altrixs-31959.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:814395010183:android:ded937c60db61e78c89c22",
+        "android_client_info": {
+          "package_name": "com.example.altrix"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-0kA8yuDgpd0LyAjsmWjlAxs71FP6-28"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

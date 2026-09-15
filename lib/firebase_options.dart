@@ -20,9 +20,7 @@ class DefaultFirebaseOptions {
         return android;
       case TargetPlatform.iOS:
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'iOS/macOS Firebase options are not configured yet. Run flutterfire configure.',
-        );
+        return ios;
       default:
         throw UnsupportedError(
           'Firebase is not supported for this platform.',
@@ -30,12 +28,20 @@ class DefaultFirebaseOptions {
     }
   }
 
-  // Replace these values by running `flutterfire configure`.
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyBnZI_NG3DI2AKUAEhiNT4kUA-AbiiwKbk',
+    appId: '1:814395010183:ios:14a216f2d5302e56c89c22',
+    messagingSenderId: '814395010183',
+    projectId: 'altrixs-31959',
+    storageBucket: 'altrixs-31959.firebasestorage.app',
+    iosBundleId: 'com.example.altrix',
+  );
+
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    appId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    messagingSenderId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    projectId: 'altrixs-3d917',
-    storageBucket: 'altrixs-3d917.firebasestorage.app',
+    apiKey: 'AIzaSyD-0kA8yuDgpd0LyAjsmWjlAxs71FP6-28',
+    appId: '1:814395010183:android:ded937c60db61e78c89c22',
+    messagingSenderId: '814395010183',
+    projectId: 'altrixs-31959',
+    storageBucket: 'altrixs-31959.firebasestorage.app',
   );
 }
