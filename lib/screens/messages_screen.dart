@@ -79,12 +79,17 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                     onRetry: () => ref.invalidate(conversationsProvider),
                   ),
                   data: (conversations) {
+                    final unreadCount = conversations.fold<int>(
+                      0,
+                      (sum, c) => sum + c.unreadCount,
+                    );
+
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const _MessagesStatsRow(
-                          totalThreads: 0,
-                          unreadTotal: 0,
+                        _MessagesStatsRow(
+                          totalThreads: conversations.length,
+                          unreadTotal: unreadCount,
                         ),
                         SizedBox(height: responsive.rz(22)),
                         Row(
@@ -135,22 +140,23 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                           ],
                         ),
                         SizedBox(height: responsive.rz(14)),
-                        // Chat person list commented out — show no chat message only
-                        /*
-                        for (final conversation in conversations)
-                          Padding(
-                            padding: EdgeInsets.only(bottom: responsive.rz(10)),
-                            child: _ConversationTile(
-                              conversation: conversation,
-                              onTap: () => _openThread(context, conversation),
+                        if (conversations.isNotEmpty) ...[
+                          for (final conversation in conversations)
+                            Padding(
+                              padding: EdgeInsets.only(bottom: responsive.rz(10)),
+                              child: ConversationTile(
+                                conversation: conversation,
+                                onTap: () => _openThread(context, conversation),
+                              ),
                             ),
+                        ] else ...[
+                          const EmptyStateCard(
+                            title: 'No chats',
+                            message:
+                                'No chats available. When your care team or clinician sends you a message, it will appear here.',
+                            icon: Icons.chat_bubble_outline_rounded,
                           ),
-                        */
-                        const EmptyStateCard(
-                          title: 'No chats',
-                          message: 'No chats available. When your care team or clinician sends you a message, it will appear here.',
-                          icon: Icons.chat_bubble_outline_rounded,
-                        ),
+                        ],
                       ],
                     );
                   },
@@ -163,13 +169,30 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
     );
   }
 
-  void _openCareChat(BuildContext context) {
+  void _openThread(BuildContext context, ConversationModel conversation) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => const ConversationDetailScreen(
-          conversationId: '',
-          title: 'Care Team',
-          participantName: 'Care Team',
+        builder: (_) => ConversationDetailScreen(
+          conversationId: conversation.id,
+          title: conversation.effectiveName,
+          participantName: conversation.effectiveName,
+        ),
+      ),
+    );
+  }
+
+  void _openCareChat(BuildContext context) {
+    final conversations = ref.read(conversationsProvider).valueOrNull;
+    final existingConvo = (conversations != null && conversations.isNotEmpty)
+        ? conversations.first
+        : null;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ConversationDetailScreen(
+          conversationId: existingConvo?.id ?? '',
+          title: existingConvo?.effectiveName ?? 'Care Team',
+          participantName: existingConvo?.effectiveName ?? 'Care Team',
         ),
       ),
     );

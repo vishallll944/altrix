@@ -108,15 +108,8 @@ void main() {
       expect(find.text('VS'), findsOneWidget);
       // Verify Live indicator is shown
       expect(find.text('Live Secure Chat'), findsOneWidget);
-      // Verify chat person is commented out and only the "No chats" card is displayed
-      expect(find.text('Dr. Sarah Jenkins'), findsNothing);
-      expect(find.text('No chats'), findsOneWidget);
-      expect(
-        find.text(
-          'No chats available. When your care team or clinician sends you a message, it will appear here.',
-        ),
-        findsOneWidget,
-      );
+      // Verify conversation tile for Dr. Sarah Jenkins is displayed
+      expect(find.text('Dr. Sarah Jenkins'), findsOneWidget);
     });
 
     testWidgets(

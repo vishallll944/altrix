@@ -69,15 +69,19 @@ class ChatSocketService {
         .setTransports(['websocket', 'polling'])
         .setPath('/api/socket/io')
         .enableAutoConnect()
-        .enableReconnection();
+        .enableReconnection()
+        .setReconnectionAttempts(3)
+        .setReconnectionDelay(3000);
 
     if (token != null && token.isNotEmpty) {
       optionsBuilder.setAuth({'token': token});
       optionsBuilder.setExtraHeaders({'Authorization': 'Bearer $token'});
+      optionsBuilder.setQuery({'token': token});
     }
 
-    final newSocket = IO.io(domain, optionsBuilder.build());
-    _socket = newSocket;
+    try {
+      final newSocket = IO.io(domain, optionsBuilder.build());
+      _socket = newSocket;
 
     // 1. Connection Success
     newSocket.onConnect((_) {
@@ -175,15 +179,23 @@ class ChatSocketService {
 
     newSocket.onConnectError((err) {
       if (kDebugMode) {
-        debugPrint('[ChatSocket] Connect Error: $err');
+        debugPrint('[ChatSocket] Connect notice: $err');
       }
+      try {
+        newSocket.disconnect();
+      } catch (_) {}
     });
 
     newSocket.onError((err) {
       if (kDebugMode) {
-        debugPrint('[ChatSocket] Error: $err');
+        debugPrint('[ChatSocket] Notice: $err');
       }
     });
+    } catch (err) {
+      if (kDebugMode) {
+        debugPrint('[ChatSocket] Setup notice: $err');
+      }
+    }
   }
 
   // 5. Trigger Typing Event when Patient is typing in Textfield

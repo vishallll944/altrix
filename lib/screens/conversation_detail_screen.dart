@@ -8,6 +8,7 @@ import '../features/auth/presentation/providers/auth_providers.dart';
 import '../features/auth/presentation/providers/auth_token_provider.dart';
 import '../features/patient/data/models/patient_models.dart';
 import '../features/patient/data/services/chat_socket_service.dart';
+import '../features/patient/presentation/providers/chat_messages_provider.dart';
 import '../features/patient/presentation/providers/patient_providers.dart';
 import '../theme/app_colors.dart';
 import '../widgets/empty_state_card.dart';
@@ -41,9 +42,10 @@ class ConversationDetailScreenState
   StreamSubscription<MessageModel>? _messageSub;
   StreamSubscription<bool>? _typingSub;
   StreamSubscription<String>? _presenceSub;
+  StreamSubscription<Map<String, dynamic>>? _sseSub;
+  Timer? _livePollTimer;
   Timer? _typingDebounceTimer;
 
-  List<MessageModel> _messages = [];
   bool _isLoading = true;
   String? _error;
   bool _isSending = false;
@@ -51,75 +53,165 @@ class ConversationDetailScreenState
   String _doctorPresenceStatus = 'online';
   late String _threadId;
 
+  // Track if user is near the bottom so we only auto-scroll when appropriate
+  bool _userIsNearBottom = true;
+
   @override
   void initState() {
     super.initState();
     _threadId = widget.conversationId;
     _socketService = ChatSocketService();
+
+    _scrollController.addListener(_onScroll);
     _initChat();
   }
 
   @override
   void dispose() {
+    _sseSub?.cancel();
+    _livePollTimer?.cancel();
     _messageSub?.cancel();
     _typingSub?.cancel();
     _presenceSub?.cancel();
     _typingDebounceTimer?.cancel();
     _socketService.dispose();
     _controller.dispose();
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    // Consider "near bottom" if within 120px of the bottom
+    _userIsNearBottom = (pos.maxScrollExtent - pos.pixels) < 120;
+  }
+
   void _initChat() async {
+    // If we already have messages cached, show them immediately (no loading
+    // spinner on re-entry — WhatsApp-like instant history)
+    final cached = ref.read(chatMessagesProvider(_threadId));
+    if (cached.isNotEmpty) {
+      setState(() => _isLoading = false);
+      _scrollToBottomImmediate();
+    }
+
     await _fetchInitialMessages();
+    _startLiveSync();
     _connectSocket();
   }
 
-  Future<void> _fetchInitialMessages() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
+  void _startLiveSync() async {
+    _sseSub?.cancel();
+    _livePollTimer?.cancel();
+
+    if (_threadId.isEmpty) return;
+
+    String? token;
+    try {
+      token = ref.read(authTokenProvider);
+      if (token == null || token.isEmpty) {
+        token = await ref.read(authSessionStorageProvider).readToken();
+      }
+    } catch (_) {
+      token = null;
+    }
+
+    if (token != null && token.isNotEmpty) {
+      try {
+        _sseSub = ref
+            .read(patientRepositoryProvider)
+            .streamLiveMessages(threadId: _threadId, token: token)
+            .listen(
+              (payload) {
+                if (!mounted) return;
+                final messageMap = payload['message'] is Map<String, dynamic>
+                    ? payload['message'] as Map<String, dynamic>
+                    : (payload['data'] is Map<String, dynamic>
+                          ? payload['data'] as Map<String, dynamic>
+                          : payload);
+                if (messageMap['id'] != null) {
+                  final incoming = MessageModel.fromJson(messageMap);
+                  _mergeMessages([incoming], isFromRealtime: true);
+                }
+              },
+              onError: (_) {},
+              cancelOnError: false,
+            );
+      } catch (_) {}
+    }
+
+    // Periodic live sync poll every 10 seconds as fallback to SSE stream
+    _livePollTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (!mounted || _threadId.isEmpty) return;
+      _pollLiveMessages();
     });
+  }
+
+  Future<void> _pollLiveMessages() async {
+    try {
+      final messages = await ref
+          .read(patientRepositoryProvider)
+          .getConversationMessages(conversationId: _threadId);
+      if (!mounted) return;
+      // Poll updates silently — only scroll if user is near bottom
+      _mergeMessages(messages, isFromRealtime: false);
+    } catch (_) {}
+  }
+
+  Future<void> _fetchInitialMessages() async {
+    final cached = ref.read(chatMessagesProvider(_threadId));
+    if (cached.isEmpty) {
+      // Only show loading indicator when there's nothing to show
+      if (mounted) setState(() { _isLoading = true; _error = null; });
+    }
 
     try {
-      // 1. Fetch chat message history via GET /api/patient/messages
       final result = await ref
           .read(patientRepositoryProvider)
-          .getPatientMessages(threadId: _threadId.isNotEmpty ? _threadId : null);
+          .getPatientMessages(
+            threadId: _threadId.isNotEmpty ? _threadId : null,
+          );
       if (!mounted) return;
       if (result.threadId.isNotEmpty) {
         _threadId = result.threadId;
       }
-      setState(() {
-        _messages = List.of(result.messages);
-        _isLoading = false;
-      });
-      _scrollToBottom();
+      ref.read(chatMessagesProvider(_threadId).notifier).seedIfEmpty(result.messages);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+      _scrollToBottom(force: true);
       _markIncomingAsRead(result.messages);
     } catch (err) {
       try {
-        // Fallback to getConversationMessages if available
-        final messages = await ref
-            .read(patientRepositoryProvider)
-            .getConversationMessages(conversationId: _threadId);
-        if (!mounted) return;
-        setState(() {
-          _messages = List.of(messages);
-          _isLoading = false;
-        });
-        _scrollToBottom();
-        _markIncomingAsRead(messages);
+        if (_threadId.isNotEmpty) {
+          final messages = await ref
+              .read(patientRepositoryProvider)
+              .getConversationMessages(conversationId: _threadId);
+          if (!mounted) return;
+          ref.read(chatMessagesProvider(_threadId).notifier).seedIfEmpty(messages);
+          if (mounted) setState(() => _isLoading = false);
+          _scrollToBottom(force: true);
+          _markIncomingAsRead(messages);
+        } else {
+          if (!mounted) return;
+          setState(() => _isLoading = false);
+        }
       } catch (innerErr) {
         if (!mounted) return;
+        // Only show error if we have no cached messages
+        final cached2 = ref.read(chatMessagesProvider(_threadId));
         setState(() {
-          _error = friendlyErrorMessage(err);
+          if (cached2.isEmpty) _error = friendlyErrorMessage(err);
           _isLoading = false;
         });
       }
     }
   }
+
+
 
   void _connectSocket() async {
     final user = ref.read(authProvider).user;
@@ -146,16 +238,14 @@ class ConversationDetailScreenState
     _messageSub?.cancel();
     _messageSub = _socketService.onNewMessage.listen((incoming) {
       if (!mounted) return;
-      _mergeLiveMessages([incoming]);
+      _mergeMessages([incoming], isFromRealtime: true);
     });
 
     _typingSub?.cancel();
     _typingSub = _socketService.onTypingStatus.listen((isTyping) {
       if (!mounted) return;
-      setState(() {
-        _isDoctorTyping = isTyping;
-      });
-      if (isTyping) {
+      setState(() => _isDoctorTyping = isTyping);
+      if (isTyping && _userIsNearBottom) {
         _scrollToBottom();
       }
     });
@@ -163,9 +253,7 @@ class ConversationDetailScreenState
     _presenceSub?.cancel();
     _presenceSub = _socketService.onPresenceChange.listen((status) {
       if (!mounted) return;
-      setState(() {
-        _doctorPresenceStatus = status;
-      });
+      setState(() => _doctorPresenceStatus = status);
     });
   }
 
@@ -185,27 +273,19 @@ class ConversationDetailScreenState
     }
   }
 
-  void _mergeLiveMessages(List<MessageModel> incoming) {
-    if (incoming.isEmpty && _messages.isEmpty) return;
+  /// Smart merge — delegates to the StateNotifier.
+  /// [isFromRealtime] = true means a new message arrived (SSE/socket), so we
+  /// should scroll. false = background poll, only scroll if user is at bottom.
+  void _mergeMessages(List<MessageModel> incoming, {required bool isFromRealtime}) {
+    final changed = ref
+        .read(chatMessagesProvider(_threadId).notifier)
+        .merge(incoming);
 
-    final existingIds = _messages.map((m) => m.id).toSet();
-    final newItems = incoming
-        .where((m) => !existingIds.contains(m.id))
-        .toList();
-
-    if (newItems.isNotEmpty ||
-        incoming.length != _messages.where((m) => !m.isPending).length) {
-      final existingConfirmedBodies = incoming.map((m) => m.body).toSet();
-      final pendingMessages = _messages
-          .where(
-            (m) => m.isPending && !existingConfirmedBodies.contains(m.body),
-          )
-          .toList();
-      setState(() {
-        _messages = [...incoming, ...pendingMessages];
-      });
-      _scrollToBottom();
+    if (changed) {
       _markIncomingAsRead(incoming);
+      if (isFromRealtime || _userIsNearBottom) {
+        _scrollToBottom();
+      }
     }
   }
 
@@ -228,14 +308,26 @@ class ConversationDetailScreenState
     }
   }
 
-  void _scrollToBottom() {
+  /// Scroll to bottom after the current frame renders.
+  /// [force] = true scrolls even if user is not near bottom (used on initial load).
+  void _scrollToBottom({bool force = false}) {
+    if (!force && !_userIsNearBottom) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 280),
           curve: Curves.easeOutCubic,
         );
+      }
+    });
+  }
+
+  /// Jump to bottom immediately without animation (used on screen open).
+  void _scrollToBottomImmediate() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
       }
     });
   }
@@ -248,7 +340,6 @@ class ConversationDetailScreenState
     final currentUserId = user?.id ?? 'patient';
     final currentUserName = user?.name ?? 'You';
 
-    // Stop typing indication immediately
     _typingDebounceTimer?.cancel();
     _socketService.sendTypingStop(_threadId, currentUserId, currentUserName);
 
@@ -265,51 +356,37 @@ class ConversationDetailScreenState
       raw: {'senderId': currentUserId},
     );
 
-    setState(() {
-      _messages.add(optimistic);
-      _controller.clear();
-      _isSending = true;
-    });
-    _scrollToBottom();
+    // Add optimistic message instantly to provider (survives navigation)
+    ref.read(chatMessagesProvider(_threadId).notifier).addOptimistic(optimistic);
+    _controller.clear();
+    setState(() => _isSending = true);
+    // Always scroll when user sends a message
+    _userIsNearBottom = true;
+    _scrollToBottom(force: true);
 
     try {
       MessageModel confirmed;
       try {
-        // Send via POST /api/patient/messages as specified
-        confirmed = await ref
-            .read(patientRepositoryProvider)
-            .sendPatientMessage(content: text, threadId: _threadId);
-      } catch (_) {
-        // Fallback to sendMessage
         confirmed = await ref
             .read(patientRepositoryProvider)
             .sendMessage(conversationId: _threadId, message: text);
+      } catch (_) {
+        confirmed = await ref
+            .read(patientRepositoryProvider)
+            .sendPatientMessage(content: text, threadId: _threadId);
       }
 
       if (!mounted) return;
-      setState(() {
-        final index = _messages.indexWhere((m) => m.id == tempId);
-        if (index != -1) {
-          _messages[index] = confirmed;
-        } else if (!_messages.any((m) => m.id == confirmed.id)) {
-          _messages.add(confirmed);
-        }
-        _isSending = false;
-      });
-      // Invalidate conversations list so lastMessage and timestamp update immediately
+      ref
+          .read(chatMessagesProvider(_threadId).notifier)
+          .confirmMessage(tempId, confirmed);
+      setState(() => _isSending = false);
+      // Invalidate conversations list so lastMessage updates immediately
       ref.invalidate(conversationsProvider);
     } catch (err) {
       if (!mounted) return;
-      setState(() {
-        final index = _messages.indexWhere((m) => m.id == tempId);
-        if (index != -1) {
-          _messages[index] = _messages[index].copyWith(
-            isPending: false,
-            hasError: true,
-          );
-        }
-        _isSending = false;
-      });
+      ref.read(chatMessagesProvider(_threadId).notifier).failMessage(tempId);
+      setState(() => _isSending = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(friendlyErrorMessage(err)),
@@ -339,6 +416,9 @@ class ConversationDetailScreenState
         ? widget.participantName
         : widget.title;
     final initials = _participantInitials(displayName);
+
+    // Watch live messages from the provider — updates trigger rebuild
+    final messages = ref.watch(chatMessagesProvider(_threadId));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -488,11 +568,11 @@ class ConversationDetailScreenState
           ),
           // Active Chat Messages List
           Expanded(
-            child: _isLoading
+            child: _isLoading && messages.isEmpty
                 ? const Center(
                     child: InlineLoadingCard(label: 'Loading live messages...'),
                   )
-                : _error != null
+                : _error != null && messages.isEmpty
                     ? Center(
                         child: Padding(
                           padding: const EdgeInsets.all(24),
@@ -502,7 +582,7 @@ class ConversationDetailScreenState
                           ),
                         ),
                       )
-                    : _messages.isEmpty && !_isDoctorTyping
+                    : messages.isEmpty && !_isDoctorTyping
                         ? const Center(
                             child: Padding(
                               padding: EdgeInsets.all(24),
@@ -517,24 +597,22 @@ class ConversationDetailScreenState
                         : ListView.builder(
                             controller: _scrollController,
                             padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-                            itemCount:
-                                _messages.length + (_isDoctorTyping ? 1 : 0),
+                            itemCount: messages.length + (_isDoctorTyping ? 1 : 0),
                             itemBuilder: (context, index) {
-                              if (index == _messages.length &&
-                                  _isDoctorTyping) {
+                              if (index == messages.length && _isDoctorTyping) {
                                 return _DoctorTypingBubble(
                                   doctorName: displayName,
                                   doctorInitials: initials,
                                 );
                               }
-                              final message = _messages[index];
+                              final message = messages[index];
                               final isMe = message.isFromMe(
                                 currentUserId: currentUserId,
                                 currentUserName: currentUserName,
                               );
                               final showDate = index == 0 ||
                                   _shouldShowDateDivider(
-                                    _messages[index - 1],
+                                    messages[index - 1],
                                     message,
                                   );
 
@@ -587,7 +665,7 @@ class ConversationDetailScreenState
                       child: TextField(
                         controller: _controller,
                         focusNode: _focusNode,
-                        maxLines: 4,
+                        maxLines: 5,
                         minLines: 1,
                         textCapitalization: TextCapitalization.sentences,
                         style: const TextStyle(fontSize: 14.5),
@@ -599,7 +677,8 @@ class ConversationDetailScreenState
                           ),
                           border: InputBorder.none,
                           isDense: true,
-                          contentPadding: EdgeInsets.symmetric(vertical: 12),
+                          contentPadding:
+                              EdgeInsets.symmetric(vertical: 12),
                         ),
                         onChanged: _onTextChanged,
                         onSubmitted: (_) => _sendMessage(),
@@ -768,7 +847,8 @@ class _ChatMessageBubble extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 14.5,
                           height: 1.35,
-                          color: isMe ? Colors.white : AppColors.textPrimary,
+                          color:
+                              isMe ? Colors.white : AppColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -806,7 +886,8 @@ class _ChatMessageBubble extends StatelessWidget {
                               Icon(
                                 Icons.done_all_rounded,
                                 size: 13,
-                                color: Colors.white.withValues(alpha: 0.85),
+                                color:
+                                    Colors.white.withValues(alpha: 0.85),
                               ),
                           ],
                         ],
@@ -1037,4 +1118,3 @@ class _DoctorTypingBubbleState extends State<_DoctorTypingBubble>
     );
   }
 }
-

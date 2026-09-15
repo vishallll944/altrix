@@ -261,41 +261,110 @@ class PatientRemoteDataSource {
   }
 
   /// Fetch chat messages history
-  /// GET /api/patient/messages
+  /// `GET /api/patient/conversations/<THREAD_ID>/messages` or fallback `GET /api/patient/messages`
   Future<({String threadId, List<MessageModel> messages})> getPatientMessages({
     String? threadId,
   }) async {
-    final data = await _request(
-      () => _dio.get<Map<String, dynamic>>(
-        ApiEndpoints.patientMessages,
-        queryParameters: threadId != null && threadId.isNotEmpty
-            ? {'threadId': threadId}
-            : null,
-      ),
-    );
-    final payload = unwrapApiPayload(data);
-    final resolvedThreadId = readString(payload, ['threadId', 'thread_id', 'id']);
-    final rawMessages = extractListFromPayload(
-      payload,
-      keys: const ['messages', 'items'],
-    );
-    final messages = rawMessages.map(MessageModel.fromJson).toList();
-    return (threadId: resolvedThreadId, messages: messages);
+    String resolvedThreadId = threadId ?? '';
+
+    // If threadId is not provided, discover the latest active conversation
+    if (resolvedThreadId.isEmpty) {
+      try {
+        final conversations = await getConversations();
+        if (conversations.isNotEmpty) {
+          resolvedThreadId = conversations.first.id;
+        }
+      } catch (_) {}
+    }
+
+    if (resolvedThreadId.isNotEmpty) {
+      try {
+        final messages = await getConversationMessages(
+          conversationId: resolvedThreadId,
+        );
+        return (threadId: resolvedThreadId, messages: messages);
+      } catch (_) {}
+    }
+
+    // Fallback route: GET /api/patient/messages
+    try {
+      final data = await _request(
+        () => _dio.get<Map<String, dynamic>>(
+          ApiEndpoints.patientMessages,
+          queryParameters: resolvedThreadId.isNotEmpty
+              ? {'threadId': resolvedThreadId}
+              : null,
+        ),
+      );
+      final payload = unwrapApiPayload(data);
+      final id = readString(payload, ['threadId', 'thread_id', 'id']);
+      final rawMessages = extractListFromPayload(
+        payload,
+        keys: const ['messages', 'items'],
+      );
+      final messages = rawMessages.map(MessageModel.fromJson).toList();
+      return (threadId: id.isNotEmpty ? id : resolvedThreadId, messages: messages);
+    } catch (_) {
+      if (resolvedThreadId.isNotEmpty) {
+        final messages = await getConversationMessages(
+          conversationId: resolvedThreadId,
+        );
+        return (threadId: resolvedThreadId, messages: messages);
+      }
+      return (threadId: '', messages: <MessageModel>[]);
+    }
   }
 
   /// Send new message (REST fallback)
-  /// POST /api/patient/messages
+  /// `POST /api/patient/conversations/<THREAD_ID>/messages` or fallback `POST /api/patient/messages`
   Future<MessageModel> sendPatientMessage({
     required String content,
     String? threadId,
   }) async {
+    String resolvedThreadId = threadId ?? '';
+
+    // If no threadId given, discover existing conversation or create a new one
+    if (resolvedThreadId.isEmpty) {
+      try {
+        final conversations = await getConversations();
+        if (conversations.isNotEmpty) {
+          resolvedThreadId = conversations.first.id;
+        } else {
+          final newConvo = await createConversation(
+            topic: 'general',
+            message: content,
+          );
+          resolvedThreadId = newConvo.id;
+          return MessageModel(
+            id: 'convo_${DateTime.now().millisecondsSinceEpoch}',
+            threadId: resolvedThreadId,
+            body: content,
+            sender: 'patient',
+            senderName: 'You',
+            createdAt: DateTime.now().toIso8601String(),
+            isRead: true,
+            raw: const {},
+          );
+        }
+      } catch (_) {}
+    }
+
+    if (resolvedThreadId.isNotEmpty) {
+      try {
+        return await sendMessage(
+          conversationId: resolvedThreadId,
+          message: content,
+        );
+      } catch (_) {}
+    }
+
     final data = await _request(
       () => _dio.post<Map<String, dynamic>>(
         ApiEndpoints.patientMessages,
         data: {
           'content': content,
           'message': content,
-          if (threadId != null && threadId.isNotEmpty) 'threadId': threadId,
+          if (resolvedThreadId.isNotEmpty) 'threadId': resolvedThreadId,
         },
       ),
     );
