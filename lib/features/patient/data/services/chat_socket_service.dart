@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+// ignore: library_prefixes
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 import '../../../../core/config/env.dart';
@@ -14,6 +15,9 @@ class ChatSocketService {
   IO.Socket? _socket;
 
   bool get isConnected => _socket?.connected ?? false;
+
+  @visibleForTesting
+  IO.Socket? get socket => _socket;
 
   final _messageController = StreamController<MessageModel>.broadcast();
   final _typingStatusController = StreamController<bool>.broadcast();
@@ -34,7 +38,6 @@ class ChatSocketService {
   String? _currentThreadId;
   String? _currentPatientId;
   String? _currentPatientName;
-  String? _currentToken;
 
   /// Connects to the Socket.io server with real-time events.
   void connectSocket({
@@ -47,7 +50,6 @@ class ChatSocketService {
     _currentThreadId = threadId;
     _currentPatientId = patientId;
     _currentPatientName = patientName;
-    _currentToken = token;
 
     // Disconnect existing socket cleanly before reconnecting
     if (_socket != null) {
@@ -70,7 +72,7 @@ class ChatSocketService {
         .setPath('/api/socket/io')
         .enableAutoConnect()
         .enableReconnection()
-        .setReconnectionAttempts(double.infinity.toInt()) // retry forever
+        .setReconnectionAttempts(0x7FFFFFFF) // retry indefinitely
         .setReconnectionDelay(2000)
         .setReconnectionDelayMax(10000);
 

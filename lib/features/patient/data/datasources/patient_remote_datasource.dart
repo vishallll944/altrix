@@ -673,20 +673,40 @@ class PatientRemoteDataSource {
     required String doseTime,
     required String status, // "taken" or "skipped"
   }) async {
+    final timeParts = doseTime.split(':');
+    if (timeParts.length != 2) {
+      throw ArgumentError.value(doseTime, 'doseTime', 'Expected HH:mm format');
+    }
+
+    final hour = int.tryParse(timeParts[0]);
+    final minute = int.tryParse(timeParts[1]);
+    if (hour == null ||
+        minute == null ||
+        hour < 0 ||
+        hour > 23 ||
+        minute < 0 ||
+        minute > 59) {
+      throw ArgumentError.value(doseTime, 'doseTime', 'Expected HH:mm format');
+    }
+
+    final now = DateTime.now();
+    final scheduledFor = DateTime(now.year, now.month, now.day, hour, minute);
+
     await _request(
       () => _dio.post<Map<String, dynamic>>(
         ApiEndpoints.patientMedicationIntake,
         data: {
           'scheduleId': scheduleId,
-          'doseTime': doseTime,
-          'status': status,
+          'scheduledFor': scheduledFor.toIso8601String(),
+          'taken': status == 'taken',
+          'skipped': status == 'skipped',
         },
       ),
     );
   }
 
   /// Real-Time Live Message Stream (SSE)
-  /// GET /api/patient/conversations/<THREAD_ID>/stream
+  /// GET /api/patient/conversations/`THREAD_ID`/stream
   Stream<Map<String, dynamic>> streamLiveMessages({
     required String threadId,
     required String token,

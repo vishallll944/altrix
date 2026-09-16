@@ -4,7 +4,7 @@ import '../../../../core/network/api_response.dart';
 enum MedicationDoseStatus { pending, taken, skipped }
 
 MedicationDoseStatus _parseDoseStatus(String raw) {
-  switch (raw.toLowerCase()) {
+  switch (raw.toLowerCase().trim()) {
     case 'taken':
       return MedicationDoseStatus.taken;
     case 'skipped':
@@ -12,6 +12,19 @@ MedicationDoseStatus _parseDoseStatus(String raw) {
     default:
       return MedicationDoseStatus.pending;
   }
+}
+
+String _normalizeTime(String raw) {
+  final trimmed = raw.trim();
+  final parts = trimmed.split(':');
+  if (parts.length >= 2) {
+    final h = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    if (h != null && m != null) {
+      return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+    }
+  }
+  return trimmed;
 }
 
 /// A single dose intake log entry returned by the backend for today.
@@ -22,24 +35,39 @@ class MedicationDoseLog {
     this.loggedAt,
   });
 
-  /// 24-hour time string, e.g. "08:00".
+  /// Normalized 24-hour time string, e.g. "08:00".
   final String doseTime;
   final MedicationDoseStatus status;
   final String? loggedAt;
 
   factory MedicationDoseLog.fromJson(Map<String, dynamic> json) {
-    return MedicationDoseLog(
-      doseTime: readString(json, ['doseTime', 'dose_time', 'time']),
-      status: _parseDoseStatus(
+    final rawTime = readString(json, ['time', 'doseTime', 'dose_time', 'dose']);
+    final isTaken = json['taken'] == true || json['isTaken'] == true;
+    final isSkipped = json['skipped'] == true || json['isSkipped'] == true;
+
+    MedicationDoseStatus status;
+    if (isTaken) {
+      status = MedicationDoseStatus.taken;
+    } else if (isSkipped) {
+      status = MedicationDoseStatus.skipped;
+    } else {
+      status = _parseDoseStatus(
         readString(json, ['status', 'state'], fallback: 'pending'),
-      ),
-      loggedAt: readString(json, ['loggedAt', 'logged_at', 'takenAt', 'taken_at']),
+      );
+    }
+
+    return MedicationDoseLog(
+      doseTime: _normalizeTime(rawTime),
+      status: status,
+      loggedAt: readString(json, ['takenAt', 'taken_at', 'loggedAt', 'logged_at']),
     );
   }
 
   Map<String, dynamic> toJson() => {
         'doseTime': doseTime,
         'status': status.name,
+        'taken': status == MedicationDoseStatus.taken,
+        'skipped': status == MedicationDoseStatus.skipped,
         if (loggedAt != null) 'loggedAt': loggedAt,
       };
 
@@ -71,7 +99,7 @@ class MedicationScheduleModel {
   final String dosage;
   final String instructions;
 
-  /// Ordered list of 24-hour time strings, e.g. ["08:00", "13:00", "21:00"].
+  /// Ordered list of normalized 24-hour time strings, e.g. ["08:00", "13:00", "20:00"].
   final List<String> doseTimes;
   final String startDate;
   final String endDate;
@@ -82,10 +110,10 @@ class MedicationScheduleModel {
 
   /// Returns the status for a specific doseTime string.
   MedicationDoseStatus statusFor(String doseTime) {
+    final norm = _normalizeTime(doseTime);
     for (final log in todayLogs) {
-      if (log.doseTime == doseTime) return log.status;
+      if (_normalizeTime(log.doseTime) == norm) return log.status;
     }
-    // If past the scheduled time with no log, still show as pending.
     return MedicationDoseStatus.pending;
   }
 
@@ -104,18 +132,11 @@ class MedicationScheduleModel {
             ? json['data'] as Map<String, dynamic>
             : json);
 
-    // Parse doseTimes — backend may send as array of strings.
-    final rawTimes = payload['doseTimes'] ?? payload['dose_times'] ?? payload['times'];
-    final doseTimes = <String>[];
-    if (rawTimes is List) {
-      for (final t in rawTimes) {
-        final s = t?.toString().trim() ?? '';
-        if (s.isNotEmpty) doseTimes.add(s);
-      }
-    }
-
-    // Parse todayLogs — backend may send as array of log objects or a map.
-    final rawLogs = payload['todayLogs'] ??
+    // Parse todayLogs / todayDoses — backend sends "todayDoses": [{"time":"08:00","taken":true,...}]
+    final rawLogs = payload['todayDoses'] ??
+        payload['today_doses'] ??
+        payload['doses'] ??
+        payload['todayLogs'] ??
         payload['today_logs'] ??
         payload['intakeLogs'] ??
         payload['intake_logs'] ??
@@ -127,6 +148,24 @@ class MedicationScheduleModel {
           todayLogs.add(MedicationDoseLog.fromJson(l));
         } else if (l is Map) {
           todayLogs.add(MedicationDoseLog.fromJson(Map<String, dynamic>.from(l)));
+        }
+      }
+    }
+
+    // Parse doseTimes — backend may send as array of strings, or derive from todayDoses.
+    final rawTimes = payload['doseTimes'] ?? payload['dose_times'] ?? payload['times'];
+    final doseTimes = <String>[];
+    if (rawTimes is List) {
+      for (final t in rawTimes) {
+        final s = t?.toString().trim() ?? '';
+        if (s.isNotEmpty) doseTimes.add(_normalizeTime(s));
+      }
+    }
+    // Fallback if doseTimes is empty: collect from todayLogs
+    if (doseTimes.isEmpty && todayLogs.isNotEmpty) {
+      for (final log in todayLogs) {
+        if (log.doseTime.isNotEmpty && !doseTimes.contains(log.doseTime)) {
+          doseTimes.add(log.doseTime);
         }
       }
     }
@@ -158,9 +197,14 @@ class MedicationScheduleModel {
   }
 
   MedicationScheduleModel withUpdatedLog(String doseTime, MedicationDoseStatus status) {
+    final norm = _normalizeTime(doseTime);
     final updatedLogs = List<MedicationDoseLog>.from(todayLogs);
-    final idx = updatedLogs.indexWhere((l) => l.doseTime == doseTime);
-    final updated = MedicationDoseLog(doseTime: doseTime, status: status);
+    final idx = updatedLogs.indexWhere((l) => _normalizeTime(l.doseTime) == norm);
+    final updated = MedicationDoseLog(
+      doseTime: norm,
+      status: status,
+      loggedAt: DateTime.now().toIso8601String(),
+    );
     if (idx >= 0) {
       updatedLogs[idx] = updated;
     } else {

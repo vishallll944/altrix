@@ -5,6 +5,20 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "altrix (Flutter RMX3998)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "GEPRBUYLO7UGAEXO"
+    },
+    {
+      "name": "altrix (Flutter RMX3998 )",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "GEPRBUYLO7UGAEXO"
+    },
+    {
       "name": "altrix (Flutter Iphone )",
       "request": "launch",
       "type": "dart",
