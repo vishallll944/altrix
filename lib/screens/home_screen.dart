@@ -9,6 +9,7 @@ import '../features/notifications/presentation/screens/notifications_screen.dart
 import '../features/patient/data/utils/appointment_utils.dart';
 import '../features/patient/data/models/patient_models.dart';
 import '../features/patient/presentation/providers/patient_providers.dart';
+import '../features/patient/presentation/screens/medications_screen.dart';
 import '../features/resources/presentation/screens/resources_screen.dart';
 import '../theme/app_colors.dart';
 import '../widgets/appointment_actions.dart';
@@ -161,11 +162,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     _QuickActions(
                       onCheckIn: _openCheckInSheet,
                       onMessages: () => widget.onNavigateToTab?.call(2),
-                      // onForms: () {
-                      //   Navigator.of(context).push(
-                      //     MaterialPageRoute(builder: (_) => const FormsScreen()),
-                      //   );
-                      // },
+                      onMedications: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const MedicationsScreen(),
+                          ),
+                        );
+                      },
                       onResources: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
@@ -1226,13 +1229,13 @@ class _QuickActions extends StatelessWidget {
   const _QuickActions({
     required this.onCheckIn,
     required this.onMessages,
-    //  required this.onForms,
+    required this.onMedications,
     required this.onResources,
   });
 
   final VoidCallback onCheckIn;
   final VoidCallback onMessages;
-  // final VoidCallback onForms;
+  final VoidCallback onMedications;
   final VoidCallback onResources;
 
   @override
@@ -1253,13 +1256,13 @@ class _QuickActions extends StatelessWidget {
         AppColors.primary,
         onMessages,
       ),
-      // (
-      //   Icons.description_outlined,
-      //   'Forms',
-      //   const [Color(0xFFE8F4FF), Color(0xFFCCE8FF)],
-      //   const Color(0xFF3B82F6),
-      //   onForms,
-      // ),
+      (
+        Icons.medication_outlined,
+        'Meds',
+        const [Color(0xFFE8F4FF), Color(0xFFCCE8FF)],
+        const Color(0xFF3B82F6),
+        onMedications,
+      ),
       (
         Icons.menu_book_outlined,
         'Resources',

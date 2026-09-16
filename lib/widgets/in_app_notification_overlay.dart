@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/notifications/notification_router.dart';
 import '../../features/notifications/presentation/providers/push_notification_provider.dart';
 import '../../theme/app_colors.dart';
 
@@ -152,7 +153,10 @@ class _NotificationBanner extends StatelessWidget {
             ],
           ),
           child: InkWell(
-            onTap: onDismiss,
+            onTap: () {
+              onDismiss();
+              NotificationRouter.handleTap(data.data);
+            },
             borderRadius: BorderRadius.circular(18),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),

@@ -12,6 +12,10 @@ class ApiEndpoints {
   // Device / push notifications
   static const patientDeviceToken = '/api/patient/device-token';
 
+  // Medications
+  static const patientMedications = '/api/patient/medications';
+  static const patientMedicationIntake = '/api/patient/medications/intake';
+
   // Profile & home
   static const patientMe = '/api/patient/me';
   static const patientAvatar = '/api/patient/avatar';

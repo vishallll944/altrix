@@ -7,6 +7,7 @@ import '../../../../core/config/env.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/network/api_response.dart';
+import '../models/medication_model.dart';
 import '../models/patient_models.dart';
 import '../utils/appointment_utils.dart';
 
@@ -641,6 +642,47 @@ class PatientRemoteDataSource {
     );
 
     return rawUrl.isNotEmpty ? resolveMediaUrl(rawUrl) : null;
+  }
+
+  /// GET /api/patient/medications
+  /// Returns all active medication schedules with today's intake log.
+  Future<List<MedicationScheduleModel>> getMedications() async {
+    final data = await _request(
+      () => _dio.get<Map<String, dynamic>>(ApiEndpoints.patientMedications),
+    );
+    final payload = unwrapApiPayload(data);
+    final rawList =
+        payload['medications'] ??
+        payload['schedules'] ??
+        payload['data'] ??
+        data['medications'] ??
+        data['data'];
+    if (rawList is List) {
+      return rawList
+          .whereType<Map>()
+          .map((e) => MedicationScheduleModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    }
+    return const [];
+  }
+
+  /// POST /api/patient/medications/intake
+  /// Records that a patient took or skipped a dose.
+  Future<void> logMedicationIntake({
+    required String scheduleId,
+    required String doseTime,
+    required String status, // "taken" or "skipped"
+  }) async {
+    await _request(
+      () => _dio.post<Map<String, dynamic>>(
+        ApiEndpoints.patientMedicationIntake,
+        data: {
+          'scheduleId': scheduleId,
+          'doseTime': doseTime,
+          'status': status,
+        },
+      ),
+    );
   }
 
   /// Real-Time Live Message Stream (SSE)

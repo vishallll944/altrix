@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../../core/config/env.dart';
 import '../../../../core/network/api_endpoints.dart';
+import '../../../../core/notifications/notification_router.dart';
 import '../../domain/push_notifications.dart';
 
 @pragma('vm:entry-point')
@@ -208,6 +209,6 @@ class PushNotificationService implements PushNotifications {
 
   void _handleOpenedMessage(RemoteMessage message) {
     debugPrint('[FCM] Opened from notification: ${message.data}');
-    // Navigation on tap is handled by the app-level listener.
+    NotificationRouter.handleTap(message.data);
   }
 }

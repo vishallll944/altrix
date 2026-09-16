@@ -1,3 +1,4 @@
+import '../models/medication_model.dart';
 import '../models/patient_models.dart';
 import '../datasources/patient_remote_datasource.dart';
 
@@ -169,6 +170,19 @@ class PatientRepository {
       _remote.getForms(page: page, limit: limit);
 
   Future<PatientFormModel> getForm(String id) => _remote.getForm(id);
+
+  Future<List<MedicationScheduleModel>> getMedications() => _remote.getMedications();
+
+  Future<void> logMedicationIntake({
+    required String scheduleId,
+    required String doseTime,
+    required String status,
+  }) =>
+      _remote.logMedicationIntake(
+        scheduleId: scheduleId,
+        doseTime: doseTime,
+        status: status,
+      );
 
   Future<void> logout() => _remote.logout();
 

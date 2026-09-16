@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/notifications/notification_router.dart';
 import '../core/responsive/responsive.dart';
 import '../theme/app_colors.dart';
 import '../widgets/exit_app_scope.dart';
@@ -21,6 +22,22 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   late int _index = widget.initialIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    NotificationRouter.registerTabSwitcher((tabIndex) {
+      if (mounted) {
+        setState(() => _index = tabIndex);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    NotificationRouter.unregisterTabSwitcher();
+    super.dispose();
+  }
 
   static const _destinations = [
     _NavDestination(

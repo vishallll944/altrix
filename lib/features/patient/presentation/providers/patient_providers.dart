@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../data/datasources/patient_remote_datasource.dart';
+import '../../data/models/medication_model.dart';
 import '../../data/models/patient_models.dart';
 import '../../data/repositories/patient_repository.dart';
 import '../../data/services/chat_socket_service.dart';
@@ -183,3 +184,59 @@ final formDetailProvider =
     FutureProvider.autoDispose.family<PatientFormModel, String>((ref, id) async {
   return ref.watch(patientRepositoryProvider).getForm(id);
 });
+
+// ---------------------------------------------------------------------------
+// Medications
+// ---------------------------------------------------------------------------
+
+/// Async notifier that manages the list of medication schedules and handles
+/// optimistic dose-intake logging.
+class MedicationsNotifier
+    extends AsyncNotifier<List<MedicationScheduleModel>> {
+  @override
+  Future<List<MedicationScheduleModel>> build() async {
+    return ref.watch(patientRepositoryProvider).getMedications();
+  }
+
+  /// Optimistically marks a dose as taken/skipped, then persists to backend.
+  /// On error it reverts to the previous state.
+  Future<void> logIntake({
+    required String scheduleId,
+    required String doseTime,
+    required MedicationDoseStatus status,
+  }) async {
+    // Snapshot current state for rollback.
+    final previous = state;
+
+    // Optimistic update.
+    state = AsyncData(
+      (state.valueOrNull ?? []).map((med) {
+        if (med.id != scheduleId) return med;
+        return med.withUpdatedLog(doseTime, status);
+      }).toList(),
+    );
+
+    try {
+      await ref.read(patientRepositoryProvider).logMedicationIntake(
+            scheduleId: scheduleId,
+            doseTime: doseTime,
+            status: status.name, // 'taken' | 'skipped'
+          );
+      // Refresh from server to get authoritative state.
+      state = await AsyncValue.guard(
+        () => ref.read(patientRepositoryProvider).getMedications(),
+      );
+    } catch (e) {
+      // Revert optimistic update on error.
+      state = previous;
+      // Re-throw so UI can show an error message.
+      rethrow;
+    }
+  }
+}
+
+final medicationsProvider =
+    AsyncNotifierProvider<MedicationsNotifier, List<MedicationScheduleModel>>(
+  MedicationsNotifier.new,
+);
+
